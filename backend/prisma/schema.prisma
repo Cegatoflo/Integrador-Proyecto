@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String
+  lastName        String
+  password        String
+  role            Role      @default(USER)
+  isActive        Boolean   @default(true)
+  tempPassword    String?
+  tempPasswordExp DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Product {
+  id             String     @id @default(cuid())
+  name           String
+  category       String
+  price          Float
+  stock          Int        @default(0)
+  sku            String?
+  size           String?
+  color          String?
+  brand          String?
+  referencePrice Float?
+  description    String?
+  isActive       Boolean    @default(true)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  saleItems      SaleItem[]
+  stockEntries   StockEntry[]
+}
+
+model Sale {
+  id                   String     @id @default(cuid())
+  total                Float
+  customerName         String?
+  customerDni          String?
+  customerEmail        String?
+  paymentMethod        String?
+  paymentStatus        String?
+  transactionReference String?
+  amountPaid           Float?
+  changeAmount         Float?
+  items                SaleItem[]
+  createdAt            DateTime   @default(now())
+}
+
+model SaleItem {
+  id        String  @id @default(cuid())
+  quantity  Int
+  price     Float
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  sale      Sale    @relation(fields: [saleId], references: [id])
+  saleId    String
+}
+
+model StockEntry {
+  id            String   @id @default(cuid())
+  product       Product  @relation(fields: [productId], references: [id])
+  productId     String
+  quantity      Int
+  previousStock Int
+  newStock      Int
+  note          String?
+  createdAt     DateTime @default(now())
+}
+
+enum Role {
+  ADMIN
+  USER
+}

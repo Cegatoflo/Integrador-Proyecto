@@ -1,0 +1,15 @@
+TOP MODAS - Usuarios de prueba
+
+ADMIN
+Nombre: Lorena Kim
+Correo: lorenakimnegrillo@gmail.com
+Contrasena: admin123
+Rol: ADMIN
+Acceso: todos los modulos, dashboard principal y configuracion.
+
+VENDEDOR
+Nombre: Cesar Torres
+Correo: cesartorres@topmodas.local
+Contrasena: torres123
+Rol: USER
+Acceso: caja, generar venta y anadir producto. No puede entrar al dashboard principal ni configuracion.
