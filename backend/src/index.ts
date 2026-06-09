@@ -7,6 +7,9 @@ import productRoutes from "./routes/products";
 import salesRoutes from "./routes/sales";
 import dashboardRoutes from "./routes/dashboard";
 import stockEntriesRoutes from "./routes/stockEntries";
+import stockRequestsRoutes from "./routes/stockRequests";
+import returnsRoutes from "./routes/returns";
+import promotionsRoutes from "./routes/promotions";
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -26,10 +29,12 @@ const allowedOrigins = [
   "http://127.0.0.1:3004",
 ].filter(Boolean);
 
+const tunnelOriginPattern = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/;
+
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin || allowedOrigins.includes(origin) || (origin && tunnelOriginPattern.test(origin))) {
         callback(null, true);
         return;
       }
@@ -46,6 +51,9 @@ app.use("/api/products", productRoutes);
 app.use("/api/sales", salesRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/stock-entries", stockEntriesRoutes);
+app.use("/api/stock-requests", stockRequestsRoutes);
+app.use("/api/returns", returnsRoutes);
+app.use("/api/promotions", promotionsRoutes);
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);

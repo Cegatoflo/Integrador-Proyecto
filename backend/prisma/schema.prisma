@@ -23,22 +23,25 @@ model User {
 }
 
 model Product {
-  id             String     @id @default(cuid())
+  id             String         @id @default(cuid())
   name           String
   category       String
   price          Float
-  stock          Int        @default(0)
+  stock          Int            @default(0)
   sku            String?
   size           String?
   color          String?
   brand          String?
   referencePrice Float?
   description    String?
-  isActive       Boolean    @default(true)
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
   saleItems      SaleItem[]
   stockEntries   StockEntry[]
+  stockRequests  StockRequest[]
+  returns        ProductReturn[]
+  promotions     Promotion[]
 }
 
 model Sale {
@@ -77,7 +80,65 @@ model StockEntry {
   createdAt     DateTime @default(now())
 }
 
+model StockRequest {
+  id                String             @id @default(cuid())
+  product           Product            @relation(fields: [productId], references: [id])
+  productId         String
+  requestedBy       String
+  quantityRequested Int
+  status            StockRequestStatus @default(PENDING)
+  note              String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model ProductReturn {
+  id          String        @id @default(cuid())
+  product     Product       @relation(fields: [productId], references: [id])
+  productId   String
+  saleId      String?
+  quantity    Int
+  reason      String
+  status      ReturnStatus  @default(PENDING)
+  processedBy String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Promotion {
+  id            String       @id @default(cuid())
+  name          String
+  description   String?
+  discountType  DiscountType
+  discountValue Float
+  product       Product?     @relation(fields: [productId], references: [id])
+  productId     String?
+  startDate     DateTime
+  endDate       DateTime
+  isActive      Boolean      @default(true)
+  createdBy     String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
 enum Role {
   ADMIN
   USER
+}
+
+enum StockRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
 }

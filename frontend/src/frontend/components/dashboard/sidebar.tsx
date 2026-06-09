@@ -2,19 +2,34 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart2, Home, LogOut, PlusCircle, Settings, Store, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BarChart2, Home, LogOut, PlusCircle, RotateCcw, Settings, Store, Tag, Users } from "lucide-react";
 
-const navItems = [
-  { name: "Dashboard", href: "/dashboard", icon: Home },
-  { name: "Caja", href: "/dashboard/caja", icon: Store },
-  { name: "Clientes", href: "/dashboard/customers", icon: Users },
-  { name: "Reportes", href: "/dashboard/reports", icon: BarChart2 },
-  { name: "Añadir Producto", href: "/dashboard/add-product", icon: PlusCircle },
-  { name: "Configuracion", href: "/dashboard/settings", icon: Settings },
+const allNavItems = [
+  { name: "Dashboard", href: "/dashboard", icon: Home, adminOnly: true },
+  { name: "Caja", href: "/dashboard/caja", icon: Store, adminOnly: false },
+  { name: "Clientes", href: "/dashboard/customers", icon: Users, adminOnly: false },
+  { name: "Reportes", href: "/dashboard/reports", icon: BarChart2, adminOnly: true },
+  { name: "Inventario", href: "/dashboard/add-product", icon: PlusCircle, adminOnly: false },
+  { name: "Devoluciones", href: "/dashboard/returns", icon: RotateCcw, adminOnly: false },
+  { name: "Promociones", href: "/dashboard/promotions", icon: Tag, adminOnly: true },
+  { name: "Configuracion", href: "/dashboard/settings", icon: Settings, adminOnly: true },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem("top-modas-user") || "{}") as { role?: string };
+      setIsAdmin(user.role === "ADMIN");
+    } catch {
+      setIsAdmin(false);
+    }
+  }, []);
+
+  const navItems = allNavItems.filter((item) => !item.adminOnly || isAdmin);
 
   return (
     <div className="flex w-64 flex-shrink-0 flex-col bg-white shadow-lg">
