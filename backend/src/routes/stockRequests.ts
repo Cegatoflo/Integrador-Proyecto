@@ -55,7 +55,7 @@ router.post("/", async (req: Request, res: Response) => {
 
 router.patch("/:id", async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const { status } = req.body as { status?: "PENDING" | "APPROVED" | "REJECTED" };
 
     if (!status || !["PENDING", "APPROVED", "REJECTED"].includes(status)) {
@@ -63,15 +63,51 @@ router.patch("/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    const updated = await prisma.stockRequest.update({
-      where: { id },
-      data: { status },
-      include: { product: { select: { id: true, name: true, sku: true, stock: true } } },
-    });
+    const requestInclude = { product: { select: { id: true, name: true, sku: true, stock: true } } };
 
+    // Lecturas fuera de la transacción para no mantenerla abierta (evita timeouts con DB remota).
+    const existing = await prisma.stockRequest.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ error: "Solicitud no encontrada" });
+      return;
+    }
+
+    // Solo sumamos stock al pasar de PENDIENTE -> APROBADA (evita duplicar al re-aprobar).
+    if (status === "APPROVED" && existing.status === "PENDING") {
+      const product = await prisma.product.findUnique({ where: { id: existing.productId } });
+      if (!product || !product.isActive) {
+        res.status(404).json({ error: "Producto no encontrado" });
+        return;
+      }
+
+      const previousStock = product.stock;
+      const newStock = previousStock + existing.quantityRequested;
+
+      // Transacción por lotes: 3 writes atómicos, sin transacción interactiva.
+      const [, , updated] = await prisma.$transaction([
+        prisma.product.update({ where: { id: product.id }, data: { stock: newStock } }),
+        prisma.stockEntry.create({
+          data: {
+            productId: product.id,
+            quantity: existing.quantityRequested,
+            previousStock,
+            newStock,
+            note: `Solicitud aprobada · ${existing.requestedBy}`,
+          },
+        }),
+        prisma.stockRequest.update({ where: { id }, data: { status }, include: requestInclude }),
+      ]);
+
+      res.json(updated);
+      return;
+    }
+
+    // Rechazo o cambio de estado sin afectar el stock.
+    const updated = await prisma.stockRequest.update({ where: { id }, data: { status }, include: requestInclude });
     res.json(updated);
-  } catch {
-    res.status(500).json({ error: "Error al actualizar solicitud" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Error al actualizar solicitud";
+    res.status(500).json({ error: message });
   }
 });
 

@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Banknote, Package, PackagePlus, ReceiptText, ShoppingCart, TrendingUp } from "lucide-react";
-import { getDashboardStats, type DashboardStats } from "@/frontend/lib/dashboard/api";
+import { AlertTriangle, Banknote, Package, PackagePlus, ReceiptText, RotateCcw, ShoppingCart, TrendingUp } from "lucide-react";
+import { getDashboardStats, getReturns, type DashboardStats, type ProductReturn } from "@/frontend/lib/dashboard/api";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
 
@@ -37,16 +37,19 @@ const paymentLabels: Record<string, string> = {
 export default function DashboardPage() {
   const router = useRouter();
   const [role, setRole] = useState<"ADMIN" | "USER" | null>(null);
+  const [userName, setUserName] = useState("");
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [sales, setSales] = useState<Sale[]>([]);
   const [stockEntries, setStockEntries] = useState<StockEntry[]>([]);
+  const [returns, setReturns] = useState<ProductReturn[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     try {
-      const user = JSON.parse(localStorage.getItem("top-modas-user") || "{}") as { role?: "ADMIN" | "USER" };
+      const user = JSON.parse(localStorage.getItem("top-modas-user") || "{}") as { role?: "ADMIN" | "USER"; name?: string; email?: string };
       setRole(user.role === "ADMIN" ? "ADMIN" : "USER");
+      setUserName(user.name || user.email || "");
     } catch {
       setRole("USER");
     }
@@ -55,11 +58,13 @@ export default function DashboardPage() {
       getDashboardStats(),
       fetch(`${BACKEND_URL}/api/sales`).then((r) => r.json()),
       fetch(`${BACKEND_URL}/api/stock-entries`).then((r) => r.json()),
+      getReturns(),
     ])
-      .then(([dashboardStats, salesData, entryData]) => {
+      .then(([dashboardStats, salesData, entryData, returnsData]) => {
         setStats(dashboardStats);
         setSales(Array.isArray(salesData) ? salesData : []);
         setStockEntries(Array.isArray(entryData) ? entryData : []);
+        setReturns(Array.isArray(returnsData) ? returnsData : []);
       })
       .catch(() => setError("No se pudo conectar con el servidor"))
       .finally(() => setLoading(false));
@@ -69,6 +74,8 @@ export default function DashboardPage() {
   const avgTicket = sales.length ? totalRevenue / sales.length : 0;
   const totalUnits = sales.reduce((sum, sale) => sum + sale.items.reduce((s, item) => s + item.quantity, 0), 0);
   const stockUnitsAdded = stockEntries.reduce((sum, entry) => sum + entry.quantity, 0);
+  const pendingReturns = returns.filter((r) => r.status === "PENDING").length;
+  const returnedUnits = returns.filter((r) => r.status === "APPROVED").reduce((sum, r) => sum + r.quantity, 0);
 
   const paymentSummary = useMemo(() => {
     const grouped = sales.reduce<Record<string, number>>((acc, sale) => {
@@ -113,7 +120,7 @@ export default function DashboardPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900">¡Bienvenido{userName ? `, ${userName}` : ""}! 👋</h1>
           <p className="text-sm text-gray-500">Resumen operativo de ventas, inventario y pagos.</p>
         </div>
         <button
@@ -126,13 +133,15 @@ export default function DashboardPage() {
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={<Package className="h-5 w-5 text-pink-600" />} label="Productos" value={loading ? "..." : (stats?.totalProducts ?? 0).toString()} />
         <StatCard icon={<TrendingUp className="h-5 w-5 text-emerald-600" />} label="Ingresos" value={loading ? "..." : `S/. ${totalRevenue.toFixed(2)}`} />
         <StatCard icon={<ReceiptText className="h-5 w-5 text-blue-600" />} label="Ventas" value={loading ? "..." : sales.length.toString()} />
         <StatCard icon={<ShoppingCart className="h-5 w-5 text-purple-600" />} label="Unidades" value={loading ? "..." : totalUnits.toString()} />
         <StatCard icon={<AlertTriangle className="h-5 w-5 text-red-500" />} label="Agotados" value={loading ? "..." : (stats?.outOfStock ?? 0).toString()} />
         <StatCard icon={<PackagePlus className="h-5 w-5 text-amber-600" />} label="Stock nuevo" value={loading ? "..." : stockUnitsAdded.toString()} />
+        <StatCard icon={<RotateCcw className="h-5 w-5 text-rose-500" />} label="Devoluciones" value={loading ? "..." : returns.length.toString()} />
+        <StatCard icon={<RotateCcw className="h-5 w-5 text-yellow-600" />} label="Devol. pend." value={loading ? "..." : pendingReturns.toString()} />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_380px]">
@@ -211,17 +220,24 @@ export default function DashboardPage() {
 
         <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-100">
           <h2 className="mb-4 font-bold text-gray-900">Pulso de operacion</h2>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <MiniMetric label="Ticket" value={`S/. ${avgTicket.toFixed(2)}`} />
             <MiniMetric label="Unidades" value={totalUnits.toString()} />
             <MiniMetric label="Stock +" value={stockUnitsAdded.toString()} />
+            <MiniMetric label="Devol. (uds.)" value={returnedUnits.toString()} />
           </div>
-          <div className="mt-5 h-24 rounded-md bg-gradient-to-r from-pink-50 via-white to-amber-50 p-4">
+          <div className="mt-5 h-24 rounded-md bg-gradient-to-r from-pink-50 via-white to-rose-50 p-4">
             <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Balance visual</p>
             <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-gray-100">
-              <div className="bg-pink-500" style={{ width: `${sales.length ? 55 : 8}%` }} />
-              <div className="bg-amber-400" style={{ width: `${stockEntries.length ? 35 : 8}%` }} />
-              <div className="bg-emerald-500" style={{ width: "10%" }} />
+              <div className="bg-pink-500" style={{ width: `${sales.length ? 50 : 8}%` }} />
+              <div className="bg-amber-400" style={{ width: `${stockEntries.length ? 30 : 8}%` }} />
+              <div className="bg-rose-400" style={{ width: `${returns.length ? 12 : 0}%` }} />
+              <div className="bg-emerald-500" style={{ width: "8%" }} />
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-gray-500">
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-pink-500" />Ventas</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-400" />Stock</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-400" />Devol.</span>
             </div>
           </div>
         </div>

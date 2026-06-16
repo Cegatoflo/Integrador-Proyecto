@@ -7,7 +7,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </div>
       <footer className="bottom-4 text-center w-full text-white text-sm mt-2">
-        © 2024 Top Modas. Todos los derechos reservados.
+        © {new Date().getFullYear()} Top Modas. Todos los derechos reservados.
       </footer>
     </div>
   );

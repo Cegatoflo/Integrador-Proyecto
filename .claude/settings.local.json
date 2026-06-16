@@ -8,7 +8,13 @@
       "Bash(npx prisma *)",
       "Bash(npm run *)",
       "Bash(npx kill-port *)",
-      "PowerShell(Stop-Process -Id \\(Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue\\).OwningProcess -Force -ErrorAction SilentlyContinue; Stop-Process -Id \\(Get-NetTCPConnection -LocalPort 3002 -ErrorAction SilentlyContinue\\).OwningProcess -Force -ErrorAction SilentlyContinue; Write-Host \"Puertos liberados\")"
+      "PowerShell(Stop-Process -Id \\(Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue\\).OwningProcess -Force -ErrorAction SilentlyContinue; Stop-Process -Id \\(Get-NetTCPConnection -LocalPort 3002 -ErrorAction SilentlyContinue\\).OwningProcess -Force -ErrorAction SilentlyContinue; Write-Host \"Puertos liberados\")",
+      "Bash(curl -s -X PUT http://localhost:3001/api/products/cmp5n0zos0007th7sq2ss75m4 -H 'Content-Type: application/json' -d '{\"stock\":16}')",
+      "Bash(python -c \"import sys,json; p=json.load\\(sys.stdin\\); print\\(p['name'],'->',p['stock']\\)\")",
+      "Bash(curl -s -X PATCH \"http://localhost:3001/api/stock-requests/cmqg5osws00015j4kuz9aapbr\" -H \"Content-Type: application/json\" -d '{\"status\":\"REJECTED\"}')",
+      "Bash(python -c \"import sys,json; r=json.load\\(sys.stdin\\); print\\('estado:',r['status']\\)\")",
+      "Bash(curl -s \"http://localhost:3001/api/stock-requests\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); p=[r for r in d if r['status']=='PENDING']; print\\('PENDIENTES:',len\\(p\\), [r['product']['name'] for r in p]\\)\")"
     ]
   }
 }

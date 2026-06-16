@@ -26,6 +26,7 @@ type RegisteredCustomer = {
   dni: string;
   email?: string;
   phone?: string;
+  createdAt?: string;
 };
 
 const CUSTOMER_STORAGE_KEY = "top-modas-customers";
@@ -52,6 +53,9 @@ const paymentLabels: Record<PaymentMethod, string> = {
 
 const makeTransactionReference = (method: PaymentMethod) =>
   `${method.toUpperCase().replace(/_/g, "-")}-${Date.now().toString().slice(-7)}`;
+
+const normalizePhone = (phone: string) => phone.replace(/\D/g, "").slice(0, 9);
+const validatePhone = (phone: string) => phone === "" || /^9\d{8}$/.test(phone);
 
 function FakeQr({ seed }: { seed: string }) {
   const cells = useMemo(() => {
@@ -87,6 +91,9 @@ export default function CajaPage() {
   const [customerDni, setCustomerDni] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [saleWithoutCustomer, setSaleWithoutCustomer] = useState(false);
+  const [quickCustomerName, setQuickCustomerName] = useState("");
+  const [quickCustomerPhone, setQuickCustomerPhone] = useState("");
+  const [quickCustomerError, setQuickCustomerError] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("efectivo");
   const [amountPaid, setAmountPaid] = useState("");
   const [transactionReference, setTransactionReference] = useState("");
@@ -117,7 +124,11 @@ export default function CajaPage() {
 
   useEffect(() => {
     const q = search.toLowerCase();
-    setFiltered(products.filter((p) => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)));
+    setFiltered(products.filter((p) =>
+      p.name.toLowerCase().includes(q) ||
+      p.category.toLowerCase().includes(q) ||
+      (p.sku || "").toLowerCase().includes(q)
+    ));
   }, [search, products]);
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -125,10 +136,11 @@ export default function CajaPage() {
   const paidAmount = paymentMethod === "efectivo" ? Number(amountPaid || 0) : total;
   const change = Math.max(0, paidAmount - total);
   const registeredCustomer = registeredCustomers.find((customer) => customer.dni === customerDni.trim());
+  const hasCustomer = saleWithoutCustomer || customerDni.length === 8;
   const canSell =
     cart.length > 0 &&
     !processing &&
-    (saleWithoutCustomer || Boolean(registeredCustomer)) &&
+    hasCustomer &&
     (paymentMethod !== "efectivo" || paidAmount >= total) &&
     (!isElectronicPayment || paymentConfirmed);
 
@@ -169,6 +181,48 @@ export default function CajaPage() {
     setCart((prev) => prev.filter((item) => item.id !== productId));
   };
 
+  const registerQuickCustomer = () => {
+    const dni = customerDni.trim();
+    const email = customerEmail.trim();
+    const phone = normalizePhone(quickCustomerPhone);
+
+    if (!/^\d{8}$/.test(dni)) {
+      setQuickCustomerError("Ingresa un DNI valido de 8 numeros.");
+      return;
+    }
+    if (!quickCustomerName.trim()) {
+      setQuickCustomerError("Ingresa el nombre del cliente.");
+      return;
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setQuickCustomerError("Ingresa un correo valido.");
+      return;
+    }
+    if (!validatePhone(phone)) {
+      setQuickCustomerError("Telefono invalido. Debe tener 9 digitos y empezar con 9.");
+      return;
+    }
+    if (registeredCustomers.some((customer) => customer.dni === dni)) {
+      setQuickCustomerError("Ya existe un cliente con ese DNI.");
+      return;
+    }
+
+    const customer: RegisteredCustomer = {
+      id: crypto.randomUUID(),
+      name: quickCustomerName.trim(),
+      dni,
+      email,
+      phone,
+      createdAt: new Date().toISOString(),
+    };
+    const nextCustomers = [customer, ...registeredCustomers];
+    setRegisteredCustomers(nextCustomers);
+    localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(nextCustomers));
+    setQuickCustomerName("");
+    setQuickCustomerPhone("");
+    setQuickCustomerError("");
+  };
+
   const refreshProducts = async () => {
     const updated = await getProducts();
     const available = updated.filter((p) => p.stock > 0);
@@ -190,11 +244,6 @@ export default function CajaPage() {
 
   const handleSale = async () => {
     if (cart.length === 0) return;
-
-    if (!saleWithoutCustomer && !registeredCustomer) {
-      setSaleError("El cliente no esta registrado. Ve a Clientes para registrarlo o marca venta sin cliente.");
-      return;
-    }
 
     if (!saleWithoutCustomer && !/^\d{8}$/.test(customerDni.trim())) {
       setSaleError("Ingresa un DNI valido de 8 numeros.");
@@ -224,10 +273,11 @@ export default function CajaPage() {
     const soldItems = [...cart];
     const dni = saleWithoutCustomer ? "" : customerDni.trim();
     const email = saleWithoutCustomer ? "" : customerEmail.trim();
-    const customerName = saleWithoutCustomer ? "Cliente generico" : registeredCustomer?.name || `Cliente DNI ${dni}`;
+    const customerName = saleWithoutCustomer ? "Cliente generico" : registeredCustomer?.name || `Cliente ${dni}`;
 
     try {
       await processSale({
+        receiptNumber,
         items: soldItems.map((item) => ({ productId: item.id, quantity: item.quantity, price: item.price })),
         customerName,
         customerDni: dni || undefined,
@@ -255,6 +305,9 @@ export default function CajaPage() {
       setCustomerDni("");
       setCustomerEmail("");
       setSaleWithoutCustomer(false);
+      setQuickCustomerName("");
+      setQuickCustomerPhone("");
+      setQuickCustomerError("");
       setPaymentMethod("efectivo");
       setAmountPaid("");
       setPaymentConfirmed(false);
@@ -306,7 +359,7 @@ export default function CajaPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar producto..."
+              placeholder="Buscar producto, SKU o categoria..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-lg border border-gray-200 bg-white py-3 pl-10 pr-4 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
@@ -338,7 +391,9 @@ export default function CajaPage() {
                       <div key={product.id} className="grid grid-cols-[minmax(180px,1fr)_110px_90px_140px] items-center px-5 py-3 transition-colors hover:bg-pink-50/40">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-bold text-gray-800">{product.name}</p>
-                          <p className="text-xs text-gray-400">{product.category}</p>
+                          <p className="text-xs text-gray-400">
+                            {product.sku ? `${product.sku} - ` : ""}{product.category}
+                          </p>
                         </div>
                         <span className="text-xs font-semibold text-gray-500">{product.stock} und.</span>
                         <span className="text-right text-sm font-bold text-pink-700">S/. {product.price.toFixed(2)}</span>
@@ -439,7 +494,9 @@ export default function CajaPage() {
                   onChange={(e) => setSaleWithoutCustomer(e.target.checked)}
                   className="h-4 w-4 rounded border-gray-300 text-pink-600"
                 />
-                Venta sin cliente
+                <span title="Venta anónima: se registra como 'Cliente generico'. Útil para ventas rápidas en mostrador sin datos del comprador.">
+                  Venta sin cliente ℹ️
+                </span>
               </label>
             </div>
 
@@ -458,7 +515,7 @@ export default function CajaPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs text-gray-500">Correo</label>
+                  <label className="mb-1 block text-xs text-gray-500">Correo (opcional)</label>
                   <input
                     type="email"
                     value={customerEmail}
@@ -471,21 +528,39 @@ export default function CajaPage() {
                   {customerDni.length === 8 && registeredCustomer ? (
                     <div className="flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
                       <UserCheck className="h-4 w-4" />
-                      {registeredCustomer.name} esta registrado.
+                      {registeredCustomer.name} — cliente registrado.
                     </div>
                   ) : customerDni.length === 8 ? (
-                    <div className="flex items-center justify-between gap-2 rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
+                    <div className="space-y-3 rounded-md bg-blue-50 px-3 py-3 text-xs font-semibold text-blue-700">
                       <span className="flex items-center gap-2">
                         <UserX className="h-4 w-4" />
-                        Cliente no registrado.
+                        DNI no registrado — se guardará como &quot;Cliente {customerDni}&quot;. Puedes vender igual.
                       </span>
-                      <a
-                        href={`/dashboard/customers?registerDni=${customerDni}`}
-                        className="inline-flex items-center gap-1 rounded-md bg-pink-600 px-2.5 py-1.5 text-white hover:bg-pink-700"
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <input
+                          value={quickCustomerName}
+                          onChange={(e) => setQuickCustomerName(e.target.value)}
+                          placeholder="Nombre del cliente"
+                          className="rounded-md border border-blue-100 px-3 py-2 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-400"
+                        />
+                        <input
+                          value={quickCustomerPhone}
+                          onChange={(e) => setQuickCustomerPhone(normalizePhone(e.target.value))}
+                          inputMode="numeric"
+                          maxLength={9}
+                          placeholder="Celular"
+                          className="rounded-md border border-blue-100 px-3 py-2 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-400"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={registerQuickCustomer}
+                        className="shrink-0 inline-flex items-center gap-1 rounded-md bg-pink-600 px-2.5 py-1.5 text-white hover:bg-pink-700"
                       >
                         <UserPlus className="h-3.5 w-3.5" />
                         Registrar
-                      </a>
+                      </button>
+                      {quickCustomerError && <p className="text-xs text-red-600">{quickCustomerError}</p>}
                     </div>
                   ) : null}
                 </div>

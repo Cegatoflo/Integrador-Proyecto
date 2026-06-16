@@ -35,6 +35,9 @@ const saveCustomers = (customers: Customer[]) => {
   localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(customers));
 };
 
+const normalizePhone = (phone: string) => phone.replace(/\D/g, "").slice(0, 9);
+const validatePhone = (phone: string) => phone === "" || /^9\d{8}$/.test(phone);
+
 export default function CreateSalePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -77,7 +80,8 @@ export default function CreateSalePage() {
     return products.filter(
       (product) =>
         product.name.toLowerCase().includes(q) ||
-        product.category.toLowerCase().includes(q)
+        product.category.toLowerCase().includes(q) ||
+        (product.sku || "").toLowerCase().includes(q)
     );
   }, [products, searchTerm]);
 
@@ -123,6 +127,9 @@ export default function CreateSalePage() {
     if (newCustomerData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newCustomerData.email)) {
       return "Ingresa un correo valido.";
     }
+    if (!validatePhone(normalizePhone(newCustomerData.phone))) {
+      return "Telefono invalido. Ingresa un celular de 9 digitos que empiece con 9.";
+    }
     if (customers.some((customer) => customer.dni === dni)) return "Ya existe un cliente con ese DNI.";
     return "";
   };
@@ -139,7 +146,7 @@ export default function CreateSalePage() {
       name: newCustomerData.name.trim(),
       dni: newCustomerData.dni.trim(),
       email: newCustomerData.email.trim(),
-      phone: newCustomerData.phone.trim(),
+      phone: normalizePhone(newCustomerData.phone),
     };
     const nextCustomers = [...customers, customer];
     setCustomers(nextCustomers);
@@ -151,12 +158,7 @@ export default function CreateSalePage() {
   };
 
   const completeSale = async () => {
-    if (!selectedCustomer) {
-      setFormError("Selecciona o registra un cliente antes de vender.");
-      setShowCustomerForm(customers.length === 0);
-      return;
-    }
-    if (!/^\d{8}$/.test(selectedCustomer.dni)) {
+    if (selectedCustomer && !/^\d{8}$/.test(selectedCustomer.dni)) {
       setFormError("El cliente seleccionado no tiene un DNI valido.");
       return;
     }
@@ -169,12 +171,15 @@ export default function CreateSalePage() {
     setFormError("");
 
     const receiptNumber = generateReceiptNumber();
+    const customerName = selectedCustomer?.name || "Cliente generico";
+    const customerDni = selectedCustomer?.dni || "";
+    const customerEmail = selectedCustomer?.email || "";
     const receiptData = {
       receiptNumber,
       date: new Date().toISOString(),
-      customerName: selectedCustomer.name,
-      customerDni: selectedCustomer.dni,
-      customerEmail: selectedCustomer.email,
+      customerName,
+      customerDni: customerDni || undefined,
+      customerEmail: customerEmail || undefined,
       items: cart,
       total,
       paymentMethod,
@@ -182,9 +187,10 @@ export default function CreateSalePage() {
 
     try {
       await processSale({
-        customerName: selectedCustomer.name,
-        customerDni: selectedCustomer.dni,
-        customerEmail: selectedCustomer.email || undefined,
+        receiptNumber,
+        customerName,
+        customerDni: customerDni || undefined,
+        customerEmail: customerEmail || undefined,
         paymentMethod,
         items: cart.map((item) => ({
           productId: item.id,
@@ -197,9 +203,9 @@ export default function CreateSalePage() {
         receiptNumber,
         total,
         itemCount: cart.reduce((sum, item) => sum + item.quantity, 0),
-        customerName: selectedCustomer.name,
-        customerDni: selectedCustomer.dni,
-        customerEmail: selectedCustomer.email,
+        customerName,
+        customerDni,
+        customerEmail,
         items: cart,
         paymentMethod,
       });
@@ -252,7 +258,7 @@ export default function CreateSalePage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
-                placeholder="Buscar por nombre o categoria..."
+                placeholder="Buscar por nombre, SKU o categoria..."
                 className="pl-10"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -302,7 +308,7 @@ export default function CreateSalePage() {
                   <UserX className="h-6 w-6 flex-shrink-0" />
                   <div>
                     <p className="text-sm font-bold">No hay clientes registrados</p>
-                    <p className="text-xs">Registra uno para poder emitir la boleta.</p>
+                    <p className="text-xs">Puedes vender sin cliente o registrar uno aqui mismo.</p>
                   </div>
                 </div>
               ) : (
@@ -356,8 +362,13 @@ export default function CreateSalePage() {
                   <Input
                     placeholder="Telefono opcional"
                     value={newCustomerData.phone}
-                    onChange={(e) => setNewCustomerData({ ...newCustomerData, phone: e.target.value })}
+                    inputMode="numeric"
+                    maxLength={9}
+                    onChange={(e) => setNewCustomerData({ ...newCustomerData, phone: normalizePhone(e.target.value) })}
                   />
+                  {newCustomerData.phone && !validatePhone(newCustomerData.phone) && (
+                    <p className="text-xs font-medium text-red-600">Debe tener 9 digitos y empezar con 9.</p>
+                  )}
                   <Button type="button" size="sm" onClick={addCustomer} className="w-full">
                     Guardar cliente
                   </Button>
@@ -423,7 +434,7 @@ export default function CreateSalePage() {
               <Button
                 type="button"
                 onClick={completeSale}
-                disabled={!selectedCustomer || cart.length === 0 || processing}
+                disabled={cart.length === 0 || processing}
                 className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
                 size="lg"
               >

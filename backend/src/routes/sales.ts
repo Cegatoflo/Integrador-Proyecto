@@ -19,6 +19,7 @@ router.post("/", async (req: Request, res: Response) => {
   try {
     const {
       items,
+      receiptNumber,
       customerName,
       customerDni,
       customerEmail,
@@ -29,6 +30,7 @@ router.post("/", async (req: Request, res: Response) => {
       changeAmount,
     } = req.body as {
       items: { productId: string; quantity: number; price: number }[];
+      receiptNumber?: string;
       customerName?: string;
       customerDni?: string;
       customerEmail?: string;
@@ -42,6 +44,15 @@ router.post("/", async (req: Request, res: Response) => {
     if (!items || items.length === 0) {
       res.status(400).json({ error: "La venta debe tener al menos un producto" });
       return;
+    }
+
+    const saleReceiptNumber = receiptNumber?.trim();
+    if (saleReceiptNumber) {
+      const existingSale = await prisma.sale.findFirst({ where: { receiptNumber: saleReceiptNumber } });
+      if (existingSale) {
+        res.status(409).json({ error: "Ya existe una venta con ese numero de boleta" });
+        return;
+      }
     }
 
     // Verificar stock disponible
@@ -58,6 +69,7 @@ router.post("/", async (req: Request, res: Response) => {
     const sale = await prisma.$transaction(async (tx) => {
       const newSale = await tx.sale.create({
         data: {
+          receiptNumber: saleReceiptNumber || null,
           total,
           customerName: customerName || null,
           customerDni: customerDni || null,

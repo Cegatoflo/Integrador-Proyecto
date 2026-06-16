@@ -46,6 +46,7 @@ model Product {
 
 model Sale {
   id                   String     @id @default(cuid())
+  receiptNumber        String?
   total                Float
   customerName         String?
   customerDni          String?
@@ -56,6 +57,7 @@ model Sale {
   amountPaid           Float?
   changeAmount         Float?
   items                SaleItem[]
+  returns              ProductReturn[]
   createdAt            DateTime   @default(now())
 }
 
@@ -96,6 +98,7 @@ model ProductReturn {
   id          String        @id @default(cuid())
   product     Product       @relation(fields: [productId], references: [id])
   productId   String
+  sale        Sale?         @relation(fields: [saleId], references: [id])
   saleId      String?
   quantity    Int
   reason      String
@@ -113,6 +116,7 @@ model Promotion {
   discountValue Float
   product       Product?     @relation(fields: [productId], references: [id])
   productId     String?
+  category      String?
   startDate     DateTime
   endDate       DateTime
   isActive      Boolean      @default(true)

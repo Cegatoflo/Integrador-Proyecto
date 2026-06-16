@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   getPromotions,
@@ -12,6 +12,8 @@ import {
   type DiscountType,
   type Product,
 } from "@/frontend/lib/dashboard/api";
+
+const CATEGORIES = ["Ropa", "Calzado", "Accesorios", "Ropa interior", "Deportivo", "Otro"];
 
 const today = () => new Date().toISOString().split("T")[0];
 const nextMonth = () => {
@@ -26,6 +28,7 @@ export default function PromotionsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
   const [userName, setUserName] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -37,9 +40,15 @@ export default function PromotionsPage() {
     discountType: "PERCENTAGE" as DiscountType,
     discountValue: "10",
     productId: "",
+    category: "",
     startDate: today(),
     endDate: nextMonth(),
   });
+
+  const categoryOptions = useMemo(
+    () => Array.from(new Set([...CATEGORIES, ...products.map((product) => product.category).filter(Boolean)])),
+    [products]
+  );
 
   useEffect(() => {
     try {
@@ -78,6 +87,7 @@ export default function PromotionsPage() {
         discountType: form.discountType,
         discountValue: Number(form.discountValue),
         productId: form.productId || undefined,
+        category: form.category || undefined,
         startDate: new Date(form.startDate).toISOString(),
         endDate: new Date(form.endDate).toISOString(),
         createdBy: userName,
@@ -89,6 +99,7 @@ export default function PromotionsPage() {
         discountType: "PERCENTAGE",
         discountValue: "10",
         productId: "",
+        category: "",
         startDate: today(),
         endDate: nextMonth(),
       });
@@ -100,10 +111,17 @@ export default function PromotionsPage() {
     }
   };
 
-  const handleToggle = async (id: string, current: boolean) => {
+  const handleToggle = async (promo: Promotion) => {
+    // Una promoción vencida no se puede reactivar ni afecta el precio.
+    if (!promo.isActive && isExpired(promo.endDate)) {
+      setWarning(
+        `La promoción "${promo.name}" venció el ${new Date(promo.endDate).toLocaleDateString("es-CO")} y ya no es válida. No se aplicará al precio. Crea una nueva promoción con fechas vigentes.`
+      );
+      return;
+    }
     try {
-      const updated = await togglePromotion(id, !current);
-      setPromotions((prev) => prev.map((p) => (p.id === id ? updated : p)));
+      const updated = await togglePromotion(promo.id, !promo.isActive);
+      setPromotions((prev) => prev.map((p) => (p.id === promo.id ? updated : p)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al actualizar");
     }
@@ -130,7 +148,7 @@ export default function PromotionsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Promociones</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Crea y gestiona descuentos sobre productos del inventario
+            Crea descuentos para productos, conjuntos por categoria o toda la tienda
           </p>
         </div>
         <button
@@ -145,6 +163,16 @@ export default function PromotionsPage() {
         <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
           <button className="ml-2 underline" onClick={() => setError("")}>
+            Cerrar
+          </button>
+        </div>
+      )}
+
+      {warning && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span className="mt-0.5">⚠️</span>
+          <span className="flex-1">{warning}</span>
+          <button className="font-medium underline" onClick={() => setWarning("")}>
             Cerrar
           </button>
         </div>
@@ -172,21 +200,36 @@ export default function PromotionsPage() {
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">
-                Producto (dejar vacío para promoción general)
+                Producto (dejar vacio para aplicar por conjunto o toda la tienda)
               </label>
               <select
                 value={form.productId}
-                onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value, category: e.target.value ? "" : f.category }))}
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-pink-400 focus:outline-none"
               >
-                <option value="">Todos los productos</option>
+                <option value="">Sin producto específico</option>
                 {products.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name} {p.sku ? `(${p.sku})` : ""} — Stock: {p.stock} | ${p.price.toLocaleString("es-CO")}
+                    {p.name} {p.sku ? `(${p.sku})` : ""} — Stock: {p.stock} | S/. {p.price.toFixed(2)}
                   </option>
                 ))}
               </select>
             </div>
+            {!form.productId && (
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">
+                  Conjunto / categoria (opcional; si no se elige, aplica a toda la tienda)
+                </label>
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-pink-400 focus:outline-none"
+                >
+                  <option value="">Toda la tienda</option>
+                  {categoryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            )}
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">
                 Tipo de descuento *
@@ -321,17 +364,19 @@ export default function PromotionsPage() {
                     </span>
                   </div>
                   <div>
-                    <span className="font-medium">Producto: </span>
+                    <span className="font-medium">Aplica a: </span>
                     {promo.product ? (
                       <span>
                         {promo.product.name}
                         {promo.product.sku ? ` (${promo.product.sku})` : ""}
-                        <span className="ml-1 text-gray-400">
-                          — Stock: {promo.product.stock}
-                        </span>
+                        <span className="ml-1 text-gray-400">— Stock: {promo.product.stock}</span>
+                      </span>
+                    ) : promo.category ? (
+                      <span className="rounded bg-blue-50 px-1.5 py-0.5 text-blue-700">
+                        Conjunto: {promo.category}
                       </span>
                     ) : (
-                      <span className="italic text-gray-400">General (todos)</span>
+                      <span className="italic text-gray-400">Toda la tienda</span>
                     )}
                   </div>
                   <div>
@@ -339,13 +384,23 @@ export default function PromotionsPage() {
                     {new Date(promo.startDate).toLocaleDateString("es-CO")} →{" "}
                     {new Date(promo.endDate).toLocaleDateString("es-CO")}
                   </div>
+                  {expired && (
+                    <div className="font-medium text-amber-600">⚠ Vencida — no se aplica al precio</div>
+                  )}
                   <div className="text-gray-400">Creado por: {promo.createdBy}</div>
                 </div>
 
                 <div className="flex gap-2">
-                  {!expired && (
+                  {expired ? (
                     <button
-                      onClick={() => handleToggle(promo.id, promo.isActive)}
+                      onClick={() => handleToggle(promo)}
+                      className="flex-1 rounded-md bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 transition hover:bg-amber-100"
+                    >
+                      Reactivar
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleToggle(promo)}
                       className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition ${
                         promo.isActive
                           ? "bg-gray-100 text-gray-600 hover:bg-gray-200"

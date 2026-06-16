@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, FormEvent } from "react";
 import { forgotPassword, resetPassword } from "@/frontend/lib/auth/api";
@@ -98,7 +97,9 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-pink-200 to-pink-400 px-4">
       <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
         <div className="text-center mb-8">
-          <Image src="/logo.svg" alt="Top Modas Logo" width={80} height={80} className="mx-auto mb-3" />
+          <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-pink-600 text-2xl font-black text-white shadow-md">
+            TM
+          </div>
           <h1 className="text-2xl font-bold text-pink-800 uppercase tracking-wide">
             Restablecer Contraseña
           </h1>
@@ -277,7 +278,7 @@ export default function ForgotPasswordPage() {
       </div>
 
       <footer className="absolute bottom-4 text-center w-full text-white text-sm">
-        © 2024 Top Modas. Todos los derechos reservados.
+        © {new Date().getFullYear()} Top Modas. Todos los derechos reservados.
       </footer>
     </div>
   );

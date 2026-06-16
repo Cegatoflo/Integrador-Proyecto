@@ -24,21 +24,21 @@ type Report = {
 const initialData: Report[] = [
   {
     id: "1",
-    date: "2024-03-20",
+    date: "2026-03-20",
     user: "Carlos Ruiz",
     action: "Venta",
     details: "Venta de 3 productos por $150",
   },
   {
     id: "2",
-    date: "2024-03-21",
+    date: "2026-03-21",
     user: "Ana López",
     action: "Devolución",
     details: "Devolución de 1 producto por $50",
   },
   {
     id: "3",
-    date: "2024-03-22",
+    date: "2026-03-22",
     user: "Miguel Torres",
     action: "Inventario",
     details: "Actualización de stock: +20 unidades",

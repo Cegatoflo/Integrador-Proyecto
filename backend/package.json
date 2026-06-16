@@ -9,7 +9,8 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "seed:admin": "tsx src/scripts/createAdmin.ts"
+    "seed:admin": "tsx src/scripts/createAdmin.ts",
+    "seed": "tsx src/scripts/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

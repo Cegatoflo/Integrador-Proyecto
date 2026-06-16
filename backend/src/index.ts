@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import authRoutes from "./routes/auth";
+import usersRoutes from "./routes/users";
 import contactRoutes from "./routes/contact";
 import productRoutes from "./routes/products";
 import salesRoutes from "./routes/sales";
@@ -46,6 +47,7 @@ app.use(
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
+app.use("/api/users", usersRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/sales", salesRoutes);

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BarChart2, Home, LogOut, PlusCircle, RotateCcw, Settings, Store, Tag, Users } from "lucide-react";
+import { BarChart2, Home, LogOut, PlusCircle, RotateCcw, Settings, Store, Tag, Users, X } from "lucide-react";
 
 const allNavItems = [
   { name: "Dashboard", href: "/dashboard", icon: Home, adminOnly: true },
@@ -16,7 +16,7 @@ const allNavItems = [
   { name: "Configuracion", href: "/dashboard/settings", icon: Settings, adminOnly: true },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -33,8 +33,13 @@ export default function Sidebar() {
 
   return (
     <div className="flex w-64 flex-shrink-0 flex-col bg-white shadow-lg">
-      <div className="flex h-20 items-center justify-center bg-gradient-to-r from-pink-50 to-white shadow-md">
+      <div className="flex h-20 items-center justify-between bg-gradient-to-r from-pink-50 to-white px-4 shadow-md">
         <h1 className="text-2xl font-bold text-pink-700">TOP MODAS</h1>
+        {onClose && (
+          <button onClick={onClose} className="rounded-md p-1 text-gray-400 hover:text-gray-600 md:hidden">
+            <X className="h-5 w-5" />
+          </button>
+        )}
       </div>
       <nav className="flex-grow overflow-y-auto">
         <ul className="py-4">

@@ -3,6 +3,7 @@ import type { PaymentMethod } from "@/frontend/components/sales/PaymentMethodSel
 
 interface ReceiptItem {
   name: string;
+  sku?: string | null;
   quantity: number;
   price: number;
 }
@@ -72,7 +73,7 @@ export function generateReceiptPDF(data: ReceiptData): void {
   const subtotal = data.total;
   const total = data.total;
   const pageWidth = 80;
-  const pageHeight = Math.max(180, 130 + data.items.length * 9);
+  const pageHeight = Math.max(180, 135 + data.items.length * 12);
   const pdf = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -146,11 +147,12 @@ export function generateReceiptPDF(data: ReceiptData): void {
   pdf.setFont("helvetica", "normal");
   data.items.forEach((item) => {
     const itemTotal = item.quantity * item.price;
-    const lines = pdf.splitTextToSize(item.name, 30);
+    const description = item.sku ? `${item.name}\nSKU: ${item.sku}` : item.name;
+    const lines = pdf.splitTextToSize(description, 30);
     pdf.text(lines, left, y);
     pdf.text(`${item.quantity} x ${money(item.price)}`, 43, y, { align: "center" });
     pdf.text(money(itemTotal), right, y, { align: "right" });
-    y += Math.max(7, lines.length * 4);
+    y += Math.max(9, lines.length * 4);
   });
 
   y += 3;

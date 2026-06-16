@@ -19,13 +19,14 @@ router.get("/", async (_req: Request, res: Response) => {
 
 router.post("/", async (req: Request, res: Response) => {
   try {
-    const { name, description, discountType, discountValue, productId, startDate, endDate, createdBy } =
+    const { name, description, discountType, discountValue, productId, category, startDate, endDate, createdBy } =
       req.body as {
         name?: string;
         description?: string;
         discountType?: "PERCENTAGE" | "FIXED";
         discountValue?: number;
         productId?: string;
+        category?: string;
         startDate?: string;
         endDate?: string;
         createdBy?: string;
@@ -66,6 +67,7 @@ router.post("/", async (req: Request, res: Response) => {
         discountType,
         discountValue: Number(discountValue),
         productId: productId || null,
+        category: productId ? null : category?.trim() || null,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         createdBy,
@@ -81,13 +83,14 @@ router.post("/", async (req: Request, res: Response) => {
 
 router.patch("/:id", async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const { isActive, name, description, discountType, discountValue, startDate, endDate } = req.body as {
+    const id = String(req.params.id);
+    const { isActive, name, description, discountType, discountValue, category, startDate, endDate } = req.body as {
       isActive?: boolean;
       name?: string;
       description?: string;
       discountType?: "PERCENTAGE" | "FIXED";
       discountValue?: number;
+      category?: string | null;
       startDate?: string;
       endDate?: string;
     };
@@ -100,6 +103,7 @@ router.patch("/:id", async (req: Request, res: Response) => {
         ...(description !== undefined && { description: description?.trim() || null }),
         ...(discountType && { discountType }),
         ...(discountValue !== undefined && { discountValue: Number(discountValue) }),
+        ...(category !== undefined && { category: category?.trim() || null }),
         ...(startDate && { startDate: new Date(startDate) }),
         ...(endDate && { endDate: new Date(endDate) }),
       },
@@ -113,7 +117,7 @@ router.patch("/:id", async (req: Request, res: Response) => {
 
 router.delete("/:id", async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     await prisma.promotion.delete({ where: { id } });
     res.json({ message: "Promoción eliminada" });
   } catch {

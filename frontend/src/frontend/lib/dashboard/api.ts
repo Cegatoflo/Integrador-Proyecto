@@ -35,8 +35,71 @@ export const getProducts = async (): Promise<Product[]> => {
   return res.json();
 };
 
+// ── Users ──────────────────────────────────────────────────────────────────────
+
+export type AppUser = {
+  id: string;
+  email: string;
+  name: string;
+  lastName: string;
+  role: "ADMIN" | "USER";
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const getUsers = async (): Promise<AppUser[]> => {
+  const res = await fetch(`${BACKEND_URL}/api/users`);
+  if (!res.ok) throw new Error("Error al obtener usuarios");
+  return res.json();
+};
+
+export const createUser = async (payload: {
+  email: string;
+  name: string;
+  lastName: string;
+  password: string;
+  role: "ADMIN" | "USER";
+}): Promise<AppUser> => {
+  const res = await fetch(`${BACKEND_URL}/api/users`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Error al crear usuario");
+  return data;
+};
+
+export const updateUser = async (
+  id: string,
+  payload: { name?: string; lastName?: string; role?: "ADMIN" | "USER"; isActive?: boolean }
+): Promise<AppUser> => {
+  const res = await fetch(`${BACKEND_URL}/api/users/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Error al actualizar usuario");
+  return data;
+};
+
+export const resetUserPassword = async (id: string, password: string): Promise<void> => {
+  const res = await fetch(`${BACKEND_URL}/api/users/${id}/password`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error ?? "Error al actualizar contraseña");
+  }
+};
+
 export type SalePayload = {
   items: { productId: string; quantity: number; price: number }[];
+  receiptNumber?: string;
   customerName?: string;
   customerDni?: string;
   customerEmail?: string;
@@ -100,6 +163,34 @@ export const updateStockRequestStatus = async (
   return data;
 };
 
+export type SaleItem = {
+  quantity: number;
+  price: number;
+  product: { id: string; name: string; sku: string | null };
+};
+
+export type Sale = {
+  id: string;
+  receiptNumber: string | null;
+  total: number;
+  customerName: string | null;
+  customerDni: string | null;
+  customerEmail: string | null;
+  paymentMethod: string | null;
+  paymentStatus: string | null;
+  transactionReference: string | null;
+  amountPaid: number | null;
+  changeAmount: number | null;
+  createdAt: string;
+  items: SaleItem[];
+};
+
+export const getSales = async (): Promise<Sale[]> => {
+  const res = await fetch(`${BACKEND_URL}/api/sales`);
+  if (!res.ok) throw new Error("Error al obtener ventas");
+  return res.json();
+};
+
 export const processSale = async (payload: SalePayload) => {
   const res = await fetch(`${BACKEND_URL}/api/sales`, {
     method: "POST",
@@ -126,6 +217,13 @@ export type ProductReturn = {
   createdAt: string;
   updatedAt: string;
   product: { id: string; name: string; sku: string | null; stock: number };
+  sale: {
+    id: string;
+    receiptNumber: string | null;
+    customerName: string | null;
+    customerDni: string | null;
+    createdAt: string;
+  } | null;
 };
 
 export const getReturns = async (): Promise<ProductReturn[]> => {
@@ -138,7 +236,7 @@ export const createReturn = async (payload: {
   productId: string;
   quantity: number;
   reason: string;
-  saleId?: string;
+  saleId: string;
 }): Promise<ProductReturn> => {
   const res = await fetch(`${BACKEND_URL}/api/returns`, {
     method: "POST",
@@ -176,6 +274,7 @@ export type Promotion = {
   discountType: DiscountType;
   discountValue: number;
   productId: string | null;
+  category: string | null;
   startDate: string;
   endDate: string;
   isActive: boolean;
@@ -197,6 +296,7 @@ export const createPromotion = async (payload: {
   discountType: DiscountType;
   discountValue: number;
   productId?: string;
+  category?: string;
   startDate: string;
   endDate: string;
   createdBy: string;
