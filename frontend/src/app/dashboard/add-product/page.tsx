@@ -259,10 +259,10 @@ export default function AddProductPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{isAdmin ? "Inventario" : "Inventario"}</h1>
-          <p className="text-sm text-gray-500">{isAdmin ? "Registro, consulta y control de stock." : "Consulta el inventario y solicita reposición al administrador."}</p>
+          <p className="text-sm text-gray-700">{isAdmin ? "Registro, consulta y control de stock." : "Consulta el inventario y solicita reposición al administrador."}</p>
         </div>
         {isAdmin && (
-          <a href="/dashboard/settings" className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50">
+          <a href="/dashboard/settings" aria-label="Ir a configuración de stock" className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-bold text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50">
             <Settings className="h-4 w-4" />Configurar stock
           </a>
         )}
@@ -282,7 +282,7 @@ export default function AddProductPage() {
               <Clock className="h-5 w-5 text-blue-600" />
               <div>
                 <h2 className="font-bold text-gray-900">Solicitudes de reposición</h2>
-                <p className="text-xs text-gray-500">Pedidos de stock enviados por los vendedores.</p>
+                <p className="text-xs text-gray-700">Pedidos de stock enviados por los vendedores.</p>
               </div>
             </div>
             <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
@@ -294,7 +294,7 @@ export default function AddProductPage() {
               <li key={req.id} className="flex flex-wrap items-center gap-3 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-gray-800">{req.product.name}</p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-gray-700">
                     {req.product.sku ? `${req.product.sku} · ` : ""}Solicitado por {req.requestedBy} · Stock actual {req.product.stock}
                     {req.note ? ` · ${req.note}` : ""}
                   </p>
@@ -305,6 +305,7 @@ export default function AddProductPage() {
                     type="button"
                     onClick={() => handleRequestDecision(req.id, "APPROVED")}
                     disabled={busyRequestId === req.id}
+                    aria-label="Aprobar solicitud de reposición"
                     className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500 px-4 py-1.5 text-xs font-bold text-white hover:bg-emerald-600 disabled:opacity-60"
                   >
                     <Check className="h-3.5 w-3.5" />Aprobar
@@ -313,7 +314,8 @@ export default function AddProductPage() {
                     type="button"
                     onClick={() => handleRequestDecision(req.id, "REJECTED")}
                     disabled={busyRequestId === req.id}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-red-100 px-4 py-1.5 text-xs font-bold text-red-600 hover:bg-red-200 disabled:opacity-60"
+                    aria-label="Rechazar solicitud de reposición"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-red-700 px-4 py-1.5 text-xs font-bold text-white hover:bg-red-800 disabled:opacity-60"
                   >
                     <X className="h-3.5 w-3.5" />Rechazar
                   </button>
@@ -329,56 +331,56 @@ export default function AddProductPage() {
           <div className="mb-4 flex items-center justify-between gap-3 border-b border-gray-100 pb-3">
             <div>
               <h2 className="font-bold text-gray-900">Registro de producto</h2>
-              <p className="text-xs text-gray-500">Talla, color HEX, precio y stock inicial.</p>
+              <p className="text-xs text-gray-700">Talla, color HEX, precio y stock inicial.</p>
             </div>
             <span className="rounded-full bg-pink-50 px-3 py-1 text-xs font-bold text-pink-700">Alta rápida</span>
           </div>
           <div className="grid gap-4 md:grid-cols-6">
-            <Field label="Producto" className="md:col-span-2">
-              <input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Ej. Falda corta" className="field" />
+            <Field label="Producto" className="md:col-span-2" htmlFor="producto-input">
+              <input id="producto-input" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Ej. Falda corta" className="field" />
             </Field>
-            <Field label="SKU / Código">
-              <input value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} placeholder={generateSku(products)} className="field" />
+            <Field label="SKU / Código" htmlFor="sku-input">
+              <input id="sku-input" value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} placeholder={generateSku(products)} className="field" />
             </Field>
-            <Field label="Categoría">
-              <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="field bg-white">
+            <Field label="Categoría" htmlFor="categoria-select">
+              <select id="categoria-select" value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="field bg-white">
                 <option value="">Seleccionar</option>
                 {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
-            <Field label="Talla">
-              <input list="size-options" value={formData.size} onChange={(e) => setFormData({ ...formData, size: e.target.value.trim() })} placeholder="Ej. S, 28 o Unitalla" className="field" />
+            <Field label="Talla" htmlFor="talla-input">
+              <input id="talla-input" list="size-options" value={formData.size} onChange={(e) => setFormData({ ...formData, size: e.target.value.trim() })} placeholder="Ej. S, 28 o Unitalla" className="field" />
             </Field>
-            <Field label="Color HEX">
+            <Field label="Color HEX" htmlFor="color-hex">
               <div className="flex gap-2">
-                <input type="color" value={formData.color} onChange={(e) => setFormData({ ...formData, color: e.target.value })} className="h-10 w-12 rounded-md border border-gray-200 bg-white p-1" />
-                <input value={formData.color} onChange={(e) => setFormData({ ...formData, color: e.target.value })} className="field flex-1 uppercase" />
+                <input type="color" id="color-hex" value={formData.color} onChange={(e) => setFormData({ ...formData, color: e.target.value })} className="h-10 w-12 rounded-md border border-gray-200 bg-white p-1" />
+                <input id="color-value" value={formData.color} onChange={(e) => setFormData({ ...formData, color: e.target.value })} className="field flex-1 uppercase" aria-label="Código HEX del color" />
               </div>
             </Field>
-            <Field label="Marca / Proveedor" className="md:col-span-2">
-              <select value={formData.brand} onChange={(e) => setFormData({ ...formData, brand: e.target.value, brandCustom: "" })} className="field bg-white">
+            <Field label="Marca / Proveedor" className="md:col-span-2" htmlFor="marca-select">
+              <select id="marca-select" value={formData.brand} onChange={(e) => setFormData({ ...formData, brand: e.target.value, brandCustom: "" })} className="field bg-white">
                 <option value="">Seleccionar marca</option>
                 {BRANDS.map((b) => <option key={b} value={b}>{b}</option>)}
               </select>
               {formData.brand === "Otro" && (
-                <input value={formData.brandCustom} onChange={(e) => setFormData({ ...formData, brandCustom: e.target.value })} placeholder="Nombre de la marca" className="field mt-1" />
+                <input id="marca-custom" value={formData.brandCustom} onChange={(e) => setFormData({ ...formData, brandCustom: e.target.value })} placeholder="Nombre de la marca" className="field mt-1" aria-label="Nombre personalizado de la marca" />
               )}
             </Field>
-            <Field label="Precio ref.">
-              <input type="number" min="0" step="0.01" value={formData.referencePrice} onChange={(e) => setFormData({ ...formData, referencePrice: e.target.value })} placeholder="0.00" className="field" />
+            <Field label="Precio ref." htmlFor="precio-ref">
+              <input id="precio-ref" type="number" min="0" step="0.01" value={formData.referencePrice} onChange={(e) => setFormData({ ...formData, referencePrice: e.target.value })} placeholder="0.00" className="field" />
             </Field>
-            <Field label="Precio venta">
-              <input type="number" min="0" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="0.00" className="field" />
+            <Field label="Precio venta" htmlFor="precio-venta">
+              <input id="precio-venta" type="number" min="0" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="0.00" className="field" />
             </Field>
-            <Field label="Stock">
-              <input type="number" min="0" value={formData.stock} onChange={(e) => setFormData({ ...formData, stock: e.target.value })} placeholder="0" className="field" />
+            <Field label="Stock" htmlFor="stock-input">
+              <input id="stock-input" type="number" min="0" value={formData.stock} onChange={(e) => setFormData({ ...formData, stock: e.target.value })} placeholder="0" className="field" />
             </Field>
-            <Field label="Notas / características" className="md:col-span-6">
-              <input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Material, temporada, observaciones..." className="field" />
+            <Field label="Notas / características" className="md:col-span-6" htmlFor="notas-input">
+              <input id="notas-input" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Material, temporada, observaciones..." className="field" />
             </Field>
           </div>
-          {formError && <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">{formError}</p>}
-          <button type="submit" disabled={saving} className="mt-4 inline-flex items-center gap-2 rounded-md bg-pink-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-pink-700 disabled:opacity-60">
+          {formError && <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{formError}</p>}
+          <button type="submit" disabled={saving} aria-label="Guardar nuevo producto" className="mt-4 inline-flex items-center gap-2 rounded-md bg-pink-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-pink-700 disabled:opacity-60">
             <Save className="h-4 w-4" />{saving ? "Guardando..." : "Guardar producto"}
           </button>
         </form>
@@ -389,20 +391,27 @@ export default function AddProductPage() {
       <div className="rounded-lg bg-white shadow-sm ring-1 ring-gray-100">
         <div className="grid gap-3 border-b border-gray-100 p-4 md:grid-cols-[1fr_180px_160px]">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar por nombre, SKU, color, marca o categoría..." className="field pl-10" />
+              <label htmlFor="search-input" className="sr-only">Buscar productos</label>
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
+            <input id="search-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar por nombre, SKU, color, marca o categoría..." className="field pl-10" />
           </div>
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="field bg-white">
-            <option value="todos">Todas las categorías</option>
-            {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="field bg-white">
-            <option value="todos">Todos los estados</option>
-            <option value="ok">OK</option>
-            <option value="bajo">Bajo</option>
-            <option value="critico">Crítico</option>
-            <option value="agotado">Agotado</option>
-          </select>
+          <div>
+            <label htmlFor="category-filter" className="sr-only">Filtrar por categoría</label>
+            <select id="category-filter" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="field bg-white">
+              <option value="todos">Todas las categorías</option>
+              {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="status-filter" className="sr-only">Filtrar por estado</label>
+            <select id="status-filter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="field bg-white">
+              <option value="todos">Todos los estados</option>
+              <option value="ok">OK</option>
+              <option value="bajo">Bajo</option>
+              <option value="critico">Crítico</option>
+              <option value="agotado">Agotado</option>
+            </select>
+          </div>
         </div>
         {loading ? (
           <div className="px-5 py-10 text-center text-sm text-gray-400">Cargando productos...</div>
@@ -432,22 +441,22 @@ export default function AddProductPage() {
                   return (
                     <tr key={product.id} className="transition-colors hover:bg-pink-50/40">
                       <td className="px-5 py-3">
-                        <p className="font-mono text-xs text-gray-500">{product.sku || String(index + 1).padStart(3, "0")}</p>
-                        <p className="font-mono text-[10px] text-gray-300">{product.id.slice(0, 6)}</p>
+                        <p className="font-mono text-xs text-gray-600">{product.sku || String(index + 1).padStart(3, "0")}</p>
+                        <p className="font-mono text-[10px] text-gray-500">{product.id.slice(0, 6)}</p>
                       </td>
                       <td className="px-5 py-3">
                         <p className="font-semibold text-gray-800">{product.name}</p>
-                        <p className="max-w-[220px] truncate text-xs text-gray-400">{product.description || product.brand || "Sin notas"}</p>
+                        <p className="max-w-[220px] truncate text-xs text-gray-700">{product.description || product.brand || "Sin notas"}</p>
                       </td>
-                      <td className="px-5 py-3 text-gray-500">
+                      <td className="px-5 py-3 text-gray-700">
                         <p className={hasMultipleSizes ? "font-semibold text-red-600" : ""}>{product.size || "-"}</p>
-                        {hasMultipleSizes && <p className="text-[10px] font-semibold text-red-500">Separar en SKUs por talla</p>}
-                        <div className="flex items-center gap-2 text-xs text-gray-400">
+                        {hasMultipleSizes && <p className="text-[10px] font-semibold text-red-600">Separar en SKUs por talla</p>}
+                        <div className="flex items-center gap-2 text-xs text-gray-600">
                           <span className="h-3 w-3 rounded-full border" style={{ backgroundColor: product.color || "#fff" }} />
                           {product.color || "-"}
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-gray-500">{product.category}</td>
+                      <td className="px-5 py-3 text-gray-700">{product.category}</td>
                       <td className="px-5 py-3 text-right">
                         <div className="inline-flex items-center justify-end gap-2">
                           <span className={`font-bold ${status.className}`}>{String(product.stock).padStart(2, "0")}</span>
@@ -461,21 +470,21 @@ export default function AddProductPage() {
                       <td className="px-5 py-3">
                         {isAdmin ? (
                           <div className="flex items-center justify-end gap-2">
-                            <input type="number" min="1" value={stockEntries[product.id] || ""} onChange={(e) => setStockEntries((prev) => ({ ...prev, [product.id]: e.target.value }))} placeholder="+" className="h-8 w-16 rounded-md border border-gray-200 px-2 text-right text-xs focus:outline-none focus:ring-2 focus:ring-pink-400" />
-                            <button type="button" onClick={() => handleStockEntry(product)} disabled={updatingStockId === product.id} className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-pink-600 text-white hover:bg-pink-700 disabled:opacity-60" title="Registrar entrada">
+                            <input type="number" min="1" value={stockEntries[product.id] || ""} onChange={(e) => setStockEntries((prev) => ({ ...prev, [product.id]: e.target.value }))} placeholder="+" className="h-8 w-16 rounded-md border border-gray-200 px-2 text-right text-xs focus:outline-none focus:ring-2 focus:ring-pink-400" aria-label={`Cantidad a registrar para ${product.name}`} />
+                            <button type="button" onClick={() => handleStockEntry(product)} disabled={updatingStockId === product.id} aria-label={`Registrar entrada de stock para ${product.name}`} className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-pink-600 text-white hover:bg-pink-700 disabled:opacity-60" title="Registrar entrada">
                               <Plus className="h-3.5 w-3.5" />
                             </button>
                           </div>
                         ) : (
                           <div className="flex items-center justify-end gap-2">
                             {justRequested ? (
-                              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">
                                 <CheckCircle className="h-3.5 w-3.5" />Enviada
                               </span>
                             ) : (
                               <>
-                                <input type="number" min="1" value={stockEntries[product.id] || ""} onChange={(e) => setStockEntries((prev) => ({ ...prev, [product.id]: e.target.value }))} placeholder="Cant." className="h-8 w-16 rounded-md border border-gray-200 px-2 text-right text-xs focus:outline-none focus:ring-2 focus:ring-pink-400" />
-                                <button type="button" onClick={() => handleStockRequest(product)} disabled={updatingStockId === product.id} className="inline-flex h-8 items-center gap-1.5 rounded-md bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
+                                <input type="number" min="1" value={stockEntries[product.id] || ""} onChange={(e) => setStockEntries((prev) => ({ ...prev, [product.id]: e.target.value }))} placeholder="Cant." className="h-8 w-16 rounded-md border border-gray-200 px-2 text-right text-xs focus:outline-none focus:ring-2 focus:ring-pink-400" aria-label={`Cantidad a solicitar para ${product.name}`} />
+                                <button type="button" onClick={() => handleStockRequest(product)} disabled={updatingStockId === product.id} aria-label={`Solicitar reposición de ${product.name}`} className="inline-flex h-8 items-center gap-1.5 rounded-md bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
                                   <Send className="h-3 w-3" />Solicitar
                                 </button>
                               </>
@@ -483,15 +492,15 @@ export default function AddProductPage() {
                           </div>
                         )}
                       </td>
-                      {isAdmin && <td className="px-5 py-3 text-right text-gray-500">{product.referencePrice ? `S/. ${product.referencePrice.toFixed(2)}` : "-"}</td>}
-                      <td className="px-5 py-3 text-right text-gray-700">S/. {product.price.toFixed(2)}</td>
+                      {isAdmin && <td className="px-5 py-3 text-right text-gray-700">{product.referencePrice ? `S/. ${product.referencePrice.toFixed(2)}` : "-"}</td>}
+                      <td className="px-5 py-3 text-right font-semibold text-gray-900">S/. {product.price.toFixed(2)}</td>
                       {isAdmin && (
                         <td className="px-5 py-3 text-center">
                           <div className="inline-flex gap-1">
-                            <button onClick={() => openEdit(product)} className="rounded-md p-2 text-gray-400 hover:bg-blue-50 hover:text-blue-500" title="Editar producto">
+                            <button onClick={() => openEdit(product)} aria-label={`Editar producto ${product.name}`} className="rounded-md p-2 text-gray-600 hover:bg-blue-50 hover:text-blue-600" title="Editar producto">
                               <Pencil className="h-4 w-4" />
                             </button>
-                            <button onClick={() => handleDelete(product.id)} className="rounded-md p-2 text-gray-400 hover:bg-red-50 hover:text-red-500" title="Eliminar producto">
+                            <button onClick={() => handleDelete(product.id)} aria-label={`Eliminar producto ${product.name}`} className="rounded-md p-2 text-gray-600 hover:bg-red-50 hover:text-red-600" title="Eliminar producto">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
@@ -512,54 +521,54 @@ export default function AddProductPage() {
             <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
               <div>
                 <h3 className="font-bold text-gray-900">Editar producto</h3>
-                <p className="text-xs text-gray-400">{editProduct.sku || editProduct.id.slice(0, 8)}</p>
+                <p className="text-xs text-gray-600">{editProduct.sku || editProduct.id.slice(0, 8)}</p>
               </div>
-              <button onClick={() => setEditProduct(null)} className="rounded-md p-1 text-gray-400 hover:bg-gray-100"><X className="h-5 w-5" /></button>
+              <button onClick={() => setEditProduct(null)} aria-label="Cerrar diálogo de edición" className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"><X className="h-5 w-5" /></button>
             </div>
             <div className="grid gap-4 p-6 md:grid-cols-3">
-              <Field label="Nombre" className="md:col-span-2">
-                <input value={editForm.name || ""} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="field" />
+              <Field label="Nombre" className="md:col-span-2" htmlFor="edit-nombre">
+                <input id="edit-nombre" value={editForm.name || ""} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="field" />
               </Field>
-              <Field label="SKU / Codigo">
-                <input value={editForm.sku || ""} onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })} className="field" />
+              <Field label="SKU / Codigo" htmlFor="edit-sku">
+                <input id="edit-sku" value={editForm.sku || ""} onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })} className="field" />
               </Field>
-              <Field label="Categoría">
-                <select value={editForm.category || ""} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} className="field bg-white">
+              <Field label="Categoría" htmlFor="edit-categoria">
+                <select id="edit-categoria" value={editForm.category || ""} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} className="field bg-white">
                   {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </Field>
-              <Field label="Talla">
-                <input list="size-options" value={editForm.size || ""} onChange={(e) => setEditForm({ ...editForm, size: e.target.value.trim() })} placeholder="Ej. S, 28 o Unitalla" className="field" />
+              <Field label="Talla" htmlFor="edit-talla">
+                <input id="edit-talla" list="size-options" value={editForm.size || ""} onChange={(e) => setEditForm({ ...editForm, size: e.target.value.trim() })} placeholder="Ej. S, 28 o Unitalla" className="field" />
               </Field>
-              <Field label="Color HEX">
+              <Field label="Color HEX" htmlFor="edit-color-hex">
                 <div className="flex gap-2">
-                  <input type="color" value={editForm.color || "#e85b9c"} onChange={(e) => setEditForm({ ...editForm, color: e.target.value })} className="h-10 w-12 rounded-md border border-gray-200 bg-white p-1" />
-                  <input value={editForm.color || ""} onChange={(e) => setEditForm({ ...editForm, color: e.target.value })} className="field flex-1 uppercase" />
+                  <input type="color" id="edit-color-hex" value={editForm.color || "#e85b9c"} onChange={(e) => setEditForm({ ...editForm, color: e.target.value })} className="h-10 w-12 rounded-md border border-gray-200 bg-white p-1" />
+                  <input id="edit-color-value" value={editForm.color || ""} onChange={(e) => setEditForm({ ...editForm, color: e.target.value })} className="field flex-1 uppercase" aria-label="Código HEX del color" />
                 </div>
               </Field>
-              <Field label="Marca / Proveedor">
-                <select value={editForm.brand || ""} onChange={(e) => setEditForm({ ...editForm, brand: e.target.value, brandCustom: "" })} className="field bg-white">
+              <Field label="Marca / Proveedor" htmlFor="edit-marca">
+                <select id="edit-marca" value={editForm.brand || ""} onChange={(e) => setEditForm({ ...editForm, brand: e.target.value, brandCustom: "" })} className="field bg-white">
                   <option value="">Sin marca</option>
                   {BRANDS.map((b) => <option key={b} value={b}>{b}</option>)}
                 </select>
                 {editForm.brand === "Otro" && (
-                  <input value={editForm.brandCustom || ""} onChange={(e) => setEditForm({ ...editForm, brandCustom: e.target.value })} placeholder="Nombre de la marca" className="field mt-1" />
+                  <input id="edit-marca-custom" value={editForm.brandCustom || ""} onChange={(e) => setEditForm({ ...editForm, brandCustom: e.target.value })} placeholder="Nombre de la marca" className="field mt-1" aria-label="Nombre personalizado de la marca" />
                 )}
               </Field>
-              <Field label="Precio ref.">
-                <input type="number" min="0" step="0.01" value={editForm.referencePrice || ""} onChange={(e) => setEditForm({ ...editForm, referencePrice: e.target.value })} placeholder="0.00" className="field" />
+              <Field label="Precio ref." htmlFor="edit-precio-ref">
+                <input id="edit-precio-ref" type="number" min="0" step="0.01" value={editForm.referencePrice || ""} onChange={(e) => setEditForm({ ...editForm, referencePrice: e.target.value })} placeholder="0.00" className="field" />
               </Field>
-              <Field label="Precio venta">
-                <input type="number" min="0" step="0.01" value={editForm.price || ""} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} placeholder="0.00" className="field" />
+              <Field label="Precio venta" htmlFor="edit-precio-venta">
+                <input id="edit-precio-venta" type="number" min="0" step="0.01" value={editForm.price || ""} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} placeholder="0.00" className="field" />
               </Field>
-              <Field label="Notas / características" className="md:col-span-3">
-                <input value={editForm.description || ""} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} className="field" />
+              <Field label="Notas / características" className="md:col-span-3" htmlFor="edit-notas">
+                <input id="edit-notas" value={editForm.description || ""} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} className="field" />
               </Field>
             </div>
-            {editError && <p className="mx-6 mb-4 rounded-md bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">{editError}</p>}
+            {editError && <p className="mx-6 mb-4 rounded-md bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{editError}</p>}
             <div className="flex justify-end gap-3 border-t border-gray-100 px-6 py-4">
-              <button onClick={() => setEditProduct(null)} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
-              <button onClick={handleEditSave} disabled={editSaving} className="inline-flex items-center gap-2 rounded-lg bg-pink-600 px-5 py-2 text-sm font-bold text-white hover:bg-pink-700 disabled:opacity-60">
+              <button onClick={() => setEditProduct(null)} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900">Cancelar</button>
+              <button onClick={handleEditSave} disabled={editSaving} aria-label="Guardar cambios del producto" className="inline-flex items-center gap-2 rounded-lg bg-pink-600 px-5 py-2 text-sm font-bold text-white hover:bg-pink-700 disabled:opacity-60">
                 <Save className="h-4 w-4" />{editSaving ? "Guardando..." : "Guardar cambios"}
               </button>
             </div>
@@ -568,19 +577,21 @@ export default function AddProductPage() {
       )}
 
       <style jsx>{`
-        .field { width:100%; border-radius:0.375rem; border:1px solid rgb(229 231 235); padding:0.625rem 0.75rem; font-size:0.875rem; outline:none; }
-        .field:focus { box-shadow:0 0 0 2px rgb(244 114 182); }
+        .field { width:100%; border-radius:0.375rem; border:1px solid rgb(209 213 219); padding:0.625rem 0.75rem; font-size:0.875rem; outline:none; color: rgb(17 24 39); }
+        .field:focus { box-shadow:0 0 0 2px rgb(244 114 182); border-color: rgb(236 72 153); }
+        .field::placeholder { color: rgb(107 114 128); }
       `}</style>
     </div>
   );
 }
 
-function Field({ label, className = "", children }: { label: string; className?: string; children: React.ReactNode }) {
+function Field({ label, className = "", children, htmlFor }: { label: string; className?: string; children: React.ReactNode; htmlFor?: string }) {
   return (
-    <label className={`space-y-1 ${className}`}>
-      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</span>
+    <div className={`space-y-1 ${className}`}>
+      {htmlFor && <label htmlFor={htmlFor} className="text-xs font-semibold uppercase tracking-wide text-gray-700 block">{label}</label>}
+      {!htmlFor && <span className="text-xs font-semibold uppercase tracking-wide text-gray-700 block">{label}</span>}
       {children}
-    </label>
+    </div>
   );
 }
 
