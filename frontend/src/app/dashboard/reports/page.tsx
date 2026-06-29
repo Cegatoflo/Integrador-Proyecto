@@ -153,13 +153,13 @@ export default function ReportsPage() {
   const maxDayTotal = Math.max(...last7.map((d) => d.total), 1);
   const maxProductRevenue = topProducts.length > 0 ? topProducts[0].total : 1;
 
-  if (loading) return <div className="py-10 text-center text-gray-400">Cargando reportes...</div>;
+  if (loading) return <div className="py-10 text-center text-gray-700">Cargando reportes...</div>;
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Reportes</h1>
-        <p className="text-sm text-gray-500">Análisis de ventas, pagos y movimientos de stock.</p>
+        <p className="text-sm text-gray-700">Análisis de ventas, pagos y movimientos de stock.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
@@ -174,9 +174,9 @@ export default function ReportsPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-100">
-          <h3 className="mb-4 font-bold text-gray-800">Métodos de pago</h3>
+          <h2 className="mb-4 font-bold text-gray-800">Métodos de pago</h2>
           {paymentDist.length === 0 ? (
-            <p className="text-sm text-gray-400">Sin datos</p>
+            <p className="text-sm text-gray-700">Sin datos</p>
           ) : (
             <div className="grid items-center gap-4 sm:grid-cols-[120px_1fr]">
               <PaymentDonut data={paymentDist} />
@@ -185,7 +185,7 @@ export default function ReportsPage() {
                 <div key={key} className="flex items-center gap-2 text-xs">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: paymentHexColors[key] || "#9ca3af" }} />
                   <span className="flex-1 font-medium text-gray-700">{label}</span>
-                    <span className="text-gray-500">{count} ({pct.toFixed(0)}%)</span>
+                    <span className="text-gray-700">{count} ({pct.toFixed(0)}%)</span>
                 </div>
               ))}
               </div>
@@ -194,16 +194,16 @@ export default function ReportsPage() {
         </div>
 
         <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-100">
-          <h3 className="mb-4 font-bold text-gray-800">Top productos</h3>
+          <h2 className="mb-4 font-bold text-gray-800">Top productos</h2>
           {topProducts.length === 0 ? (
-            <p className="text-sm text-gray-400">Sin datos</p>
+            <p className="text-sm text-gray-700">Sin datos</p>
           ) : (
             <div className="space-y-3">
               {topProducts.map((p) => (
                 <div key={p.name}>
                   <div className="mb-1 flex justify-between text-xs">
                     <span className="max-w-[60%] truncate font-medium text-gray-700">{p.name}</span>
-                    <span className="text-gray-500">S/. {p.total.toFixed(0)} · {p.qty} uds.</span>
+                    <span className="text-gray-700">S/. {p.total.toFixed(0)} · {p.qty} uds.</span>
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
                     <div className="h-full rounded-full bg-pink-500" style={{ width: `${(p.total / maxProductRevenue) * 100}%` }} />
@@ -215,34 +215,41 @@ export default function ReportsPage() {
         </div>
 
         <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-100 md:col-span-2 xl:col-span-1">
-          <h3 className="mb-4 font-bold text-gray-800">Ventas últimos 7 días</h3>
+          <h2 className="mb-4 font-bold text-gray-800">Ventas últimos 7 días</h2>
           <SalesTrendChart data={last7} maxTotal={maxDayTotal} />
         </div>
       </div>
 
       <div className="rounded-lg bg-white shadow-sm ring-1 ring-gray-100">
-        <div className="flex gap-1 border-b border-gray-100 px-4 pt-3">
-          {(["ventas", "stock", "devoluciones"] as const).map((tab) => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`rounded-t-md px-4 py-2 text-sm font-semibold capitalize transition-colors ${activeTab === tab ? "border-b-2 border-pink-500 text-pink-700" : "text-gray-500 hover:text-gray-700"}`}>
-              {tab === "ventas" ? "Historial de ventas" : tab === "stock" ? "Entradas de stock" : "Devoluciones"}
-            </button>
-          ))}
+        <div className="flex gap-1 border-b border-gray-100 px-4 pt-3" role="tablist">
+          {(["ventas", "stock", "devoluciones"] as const).map((tab) => {
+            const tabLabel = tab === "ventas" ? "Historial de ventas" : tab === "stock" ? "Entradas de stock" : "Devoluciones";
+            return (
+              <button key={tab} onClick={() => setActiveTab(tab)} aria-label={`Ver ${tabLabel}`} role="tab" aria-selected={activeTab === tab} className={`rounded-t-md px-4 py-2 text-sm font-semibold capitalize transition-colors ${activeTab === tab ? "border-b-2 border-pink-500 text-pink-700" : "text-gray-700 hover:text-gray-900"}`}>
+                {tabLabel}
+              </button>
+            );
+          })}
         </div>
 
         {activeTab === "ventas" && (
           <>
             <div className="grid gap-3 border-b border-gray-100 p-4 md:grid-cols-[1fr_220px]">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar cliente, DNI, numero de venta, producto o SKU..." className="w-full rounded-md border border-gray-200 py-2 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400" />
+                <label htmlFor="search-sales" className="sr-only">Buscar ventas</label>
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
+                <input id="search-sales" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar cliente, DNI, numero de venta, producto o SKU..." className="w-full rounded-md border border-gray-300 py-2 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400" />
               </div>
-              <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400">
-                <option value="todos">Todos los pagos</option>
-                {Object.entries(paymentLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
+              <div>
+                <label htmlFor="payment-filter" className="sr-only">Filtrar por método de pago</label>
+                <select id="payment-filter" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400">
+                  <option value="todos">Todos los pagos</option>
+                  {Object.entries(paymentLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+              </div>
             </div>
             {filteredSales.length === 0 ? (
-              <div className="px-6 py-10 text-center text-sm text-gray-400">No hay ventas con esos filtros</div>
+              <div className="px-6 py-10 text-center text-sm text-gray-700">No hay ventas con esos filtros</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -263,13 +270,13 @@ export default function ReportsPage() {
                       const itemCount = sale.items.reduce((sum, item) => sum + item.quantity, 0);
                       return (
                         <tr key={sale.id} className="transition-colors hover:bg-pink-50/40">
-                          <td className="px-5 py-3 text-xs text-gray-500">
+                          <td className="px-5 py-3 text-xs text-gray-700">
                             <p>{new Date(sale.createdAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
-                            <p className="font-mono text-[11px] text-gray-400">{saleNumber(sale)}</p>
+                            <p className="font-mono text-[11px] text-gray-600">{saleNumber(sale)}</p>
                           </td>
                           <td className="px-5 py-3">
                             <p className="font-semibold text-gray-800">{sale.customerName || "Cliente genérico"}</p>
-                            <p className="text-xs text-gray-400">{sale.customerDni || sale.customerEmail || "Sin datos"}</p>
+                            <p className="text-xs text-gray-700">{sale.customerDni || sale.customerEmail || "Sin datos"}</p>
                           </td>
                           <td className="px-5 py-3">
                             <span className={`rounded-full px-2 py-1 text-xs font-bold ${sale.customerDni ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"}`}>
@@ -278,14 +285,14 @@ export default function ReportsPage() {
                           </td>
                           <td className="px-5 py-3">
                             <div className="flex items-center gap-1.5">
-                              <span className={`h-2 w-2 rounded-full ${paymentColors[payment] || "bg-gray-400"}`} />
+                              <span className={`h-2 w-2 rounded-full ${paymentColors[payment] || "bg-gray-500"}`} />
                               <span className="font-semibold text-gray-800">{paymentLabels[payment] || payment}</span>
                             </div>
-                            <p className="text-xs text-gray-400">{sale.transactionReference || sale.paymentStatus || "Caja"}</p>
+                            <p className="text-xs text-gray-700">{sale.transactionReference || sale.paymentStatus || "Caja"}</p>
                           </td>
-                          <td className="px-5 py-3 text-gray-600">
+                          <td className="px-5 py-3 text-gray-700">
                             <p className="font-semibold">{itemCount} unid.</p>
-                            <p className="max-w-[240px] truncate text-xs text-gray-400">{sale.items.map((item) => `${item.quantity}x ${item.product.name}${item.product.sku ? ` (${item.product.sku})` : ""}`).join(", ")}</p>
+                            <p className="max-w-[240px] truncate text-xs text-gray-700">{sale.items.map((item) => `${item.quantity}x ${item.product.name}${item.product.sku ? ` (${item.product.sku})` : ""}`).join(", ")}</p>
                           </td>
                           <td className="px-5 py-3 text-right font-bold text-pink-700">S/. {sale.total.toFixed(2)}</td>
                           <td className="px-5 py-3 text-right font-semibold text-emerald-700">S/. {(sale.changeAmount || 0).toFixed(2)}</td>
@@ -302,7 +309,7 @@ export default function ReportsPage() {
         {activeTab === "stock" && (
           <>
             {stockEntries.length === 0 ? (
-              <div className="px-6 py-8 text-center text-sm text-gray-400">Todavía no hay entradas de stock</div>
+              <div className="px-6 py-8 text-center text-sm text-gray-700">Todavía no hay entradas de stock</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -320,16 +327,16 @@ export default function ReportsPage() {
                   <tbody className="divide-y divide-gray-100">
                     {stockEntries.map((entry) => (
                       <tr key={entry.id} className="transition-colors hover:bg-amber-50/40">
-                        <td className="px-5 py-3 text-xs text-gray-500">{new Date(entry.createdAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
+                        <td className="px-5 py-3 text-xs text-gray-700">{new Date(entry.createdAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
                         <td className="px-5 py-3">
                           <p className="font-semibold text-gray-800">{entry.product.name}</p>
-                          <p className="text-xs text-gray-400">{entry.product.sku || "Sin SKU"}</p>
+                          <p className="text-xs text-gray-700">{entry.product.sku || "Sin SKU"}</p>
                         </td>
-                        <td className="px-5 py-3 text-gray-500">{entry.product.category}</td>
+                        <td className="px-5 py-3 text-gray-700">{entry.product.category}</td>
                         <td className="px-5 py-3 text-right font-bold text-amber-700">+{entry.quantity}</td>
-                        <td className="px-5 py-3 text-right text-gray-600">{entry.previousStock}</td>
+                        <td className="px-5 py-3 text-right text-gray-700">{entry.previousStock}</td>
                         <td className="px-5 py-3 text-right font-bold text-gray-900">{entry.newStock}</td>
-                        <td className="px-5 py-3 text-gray-500">{entry.note || "—"}</td>
+                        <td className="px-5 py-3 text-gray-700">{entry.note || "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -346,7 +353,7 @@ export default function ReportsPage() {
               <span className="rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-700">Unid. reingresadas: {approvedReturnUnits}</span>
             </div>
             {returns.length === 0 ? (
-              <div className="px-6 py-8 text-center text-sm text-gray-400">Todavía no hay devoluciones registradas</div>
+              <div className="px-6 py-8 text-center text-sm text-gray-700">Todavía no hay devoluciones registradas</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -364,20 +371,20 @@ export default function ReportsPage() {
                   <tbody className="divide-y divide-gray-100">
                     {returns.map((ret) => (
                       <tr key={ret.id} className="transition-colors hover:bg-rose-50/40">
-                        <td className="px-5 py-3 text-xs text-gray-500">{new Date(ret.createdAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
+                        <td className="px-5 py-3 text-xs text-gray-700">{new Date(ret.createdAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
                         <td className="px-5 py-3">
                           <p className="font-semibold text-gray-800">{ret.product.name}</p>
-                          <p className="text-xs text-gray-400">{ret.product.sku || "Sin SKU"}</p>
+                          <p className="text-xs text-gray-700">{ret.product.sku || "Sin SKU"}</p>
                         </td>
-                        <td className="px-5 py-3 font-mono text-xs text-gray-400">{returnSaleNumber(ret)}</td>
+                        <td className="px-5 py-3 font-mono text-xs text-gray-700">{returnSaleNumber(ret)}</td>
                         <td className="px-5 py-3 text-center font-bold text-gray-700">{ret.quantity}</td>
-                        <td className="px-5 py-3 max-w-[220px] truncate text-gray-600">{ret.reason}</td>
+                        <td className="px-5 py-3 max-w-[220px] truncate text-gray-700">{ret.reason}</td>
                         <td className="px-5 py-3">
                           <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${RETURN_STATUS_COLOR[ret.status]}`}>
                             {RETURN_STATUS_LABEL[ret.status]}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-xs text-gray-500">{ret.processedBy || "—"}</td>
+                        <td className="px-5 py-3 text-xs text-gray-700">{ret.processedBy || "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -406,7 +413,7 @@ function PaymentDonut({ data }: { data: { key: string; count: number; pct: numbe
     <div className="relative h-28 w-28 rounded-full" style={{ background: gradient }}>
       <div className="absolute inset-4 flex flex-col items-center justify-center rounded-full bg-white shadow-inner">
         <span className="text-xl font-bold text-gray-900">{total}</span>
-        <span className="text-[10px] font-semibold uppercase text-gray-400">ventas</span>
+        <span className="text-[10px] font-semibold uppercase text-gray-700">ventas</span>
       </div>
     </div>
   );
@@ -443,7 +450,7 @@ function SalesTrendChart({ data, maxTotal }: { data: { day: string; label: strin
           </g>
         ))}
       </svg>
-      <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-gray-400">
+      <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-gray-700">
         {data.map((item) => <span key={item.day}>{item.label}</span>)}
       </div>
     </div>
@@ -455,7 +462,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
     <div className="flex items-center gap-3 rounded-lg border border-pink-100 bg-white p-4 shadow-sm">
       <div className="rounded-md bg-pink-50 p-3">{icon}</div>
       <div>
-        <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
+        <p className="text-xs uppercase tracking-wide text-gray-700">{label}</p>
         <p className="text-lg font-bold text-gray-900">{value}</p>
       </div>
     </div>
