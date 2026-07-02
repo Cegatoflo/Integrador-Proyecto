@@ -11,6 +11,7 @@ import stockEntriesRoutes from "./routes/stockEntries";
 import stockRequestsRoutes from "./routes/stockRequests";
 import returnsRoutes from "./routes/returns";
 import promotionsRoutes from "./routes/promotions";
+import customerRoutes from "./routes/customer";
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -56,6 +57,7 @@ app.use("/api/stock-entries", stockEntriesRoutes);
 app.use("/api/stock-requests", stockRequestsRoutes);
 app.use("/api/returns", returnsRoutes);
 app.use("/api/promotions", promotionsRoutes);
+app.use("/api/customers", customerRoutes);
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);

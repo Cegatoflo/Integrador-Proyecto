@@ -6,6 +6,8 @@ interface ReceiptItem {
   sku?: string | null;
   quantity: number;
   price: number;
+  originalPrice?: number;
+  promoLabel?: string;
 }
 
 interface ReceiptData {
@@ -70,10 +72,11 @@ const drawQr = (pdf: jsPDF, x: number, y: number, size: number, seed: string) =>
 };
 
 export function generateReceiptPDF(data: ReceiptData): void {
-  const subtotal = data.total;
   const total = data.total;
+  const subtotal = data.items.reduce((sum, item) => sum + (item.originalPrice ?? item.price) * item.quantity, 0);
+  const totalDiscount = Math.max(0, subtotal - total);
   const pageWidth = 80;
-  const pageHeight = Math.max(180, 135 + data.items.length * 12);
+  const pageHeight = Math.max(190, 140 + data.items.length * 14);
   const pdf = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -147,7 +150,11 @@ export function generateReceiptPDF(data: ReceiptData): void {
   pdf.setFont("helvetica", "normal");
   data.items.forEach((item) => {
     const itemTotal = item.quantity * item.price;
-    const description = item.sku ? `${item.name}\nSKU: ${item.sku}` : item.name;
+    const hasPromo = item.originalPrice !== undefined && item.originalPrice > item.price;
+    let description = item.sku ? `${item.name}\nSKU: ${item.sku}` : item.name;
+    if (hasPromo) {
+      description += `\nAntes ${money(item.originalPrice as number)}${item.promoLabel ? ` (-${item.promoLabel})` : ""}`;
+    }
     const lines = pdf.splitTextToSize(description, 30);
     pdf.text(lines, left, y);
     pdf.text(`${item.quantity} x ${money(item.price)}`, 43, y, { align: "center" });
@@ -158,8 +165,13 @@ export function generateReceiptPDF(data: ReceiptData): void {
   y += 3;
   pdf.line(left, y, right, y);
   y += 6;
-  pdf.text("IMPORTE TOTAL", left, y);
+  pdf.text("SUBTOTAL", left, y);
   pdf.text(money(subtotal), right, y, { align: "right" });
+  if (totalDiscount > 0) {
+    y += 5;
+    pdf.text("DESCUENTO PROMOCIONES", left, y);
+    pdf.text(`- ${money(totalDiscount)}`, right, y, { align: "right" });
+  }
   y += 5;
   pdf.text("Importe a pagar", left, y);
   pdf.text(money(total), right, y, { align: "right" });

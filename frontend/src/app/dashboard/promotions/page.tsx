@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Search } from "lucide-react";
 import {
   getPromotions,
   createPromotion,
+  updatePromotion,
   togglePromotion,
   deletePromotion,
   getProducts,
@@ -22,6 +24,19 @@ const nextMonth = () => {
   return d.toISOString().split("T")[0];
 };
 
+const isExpired = (endDate: string) => new Date(endDate) < new Date();
+
+const blankForm = () => ({
+  name: "",
+  description: "",
+  discountType: "PERCENTAGE" as DiscountType,
+  discountValue: "10",
+  productId: "",
+  category: "",
+  startDate: today(),
+  endDate: nextMonth(),
+});
+
 export default function PromotionsPage() {
   const router = useRouter();
   const [promotions, setPromotions] = useState<Promotion[]>([]);
@@ -33,22 +48,32 @@ export default function PromotionsPage() {
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "expired">("all");
 
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    discountType: "PERCENTAGE" as DiscountType,
-    discountValue: "10",
-    productId: "",
-    category: "",
-    startDate: today(),
-    endDate: nextMonth(),
-  });
+  const [form, setForm] = useState(blankForm);
 
   const categoryOptions = useMemo(
     () => Array.from(new Set([...CATEGORIES, ...products.map((product) => product.category).filter(Boolean)])),
     [products]
   );
+
+  const filteredPromotions = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    return promotions.filter((promo) => {
+      const status = isExpired(promo.endDate) ? "expired" : promo.isActive ? "active" : "inactive";
+      if (statusFilter !== "all" && statusFilter !== status) return false;
+      if (!q) return true;
+      return (
+        promo.name.toLowerCase().includes(q) ||
+        (promo.description ?? "").toLowerCase().includes(q) ||
+        (promo.product?.name ?? "").toLowerCase().includes(q) ||
+        (promo.product?.sku ?? "").toLowerCase().includes(q) ||
+        (promo.category ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [promotions, search, statusFilter]);
 
   useEffect(() => {
     try {
@@ -76,36 +101,70 @@ export default function PromotionsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setForm(blankForm());
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const openNew = () => {
+    setForm(blankForm());
+    setEditingId(null);
+    setError("");
+    setShowForm(true);
+  };
+
+  const startEdit = (promo: Promotion) => {
+    setEditingId(promo.id);
+    setForm({
+      name: promo.name,
+      description: promo.description ?? "",
+      discountType: promo.discountType,
+      discountValue: String(promo.discountValue),
+      productId: promo.productId ?? "",
+      category: promo.category ?? "",
+      startDate: promo.startDate.split("T")[0],
+      endDate: promo.endDate.split("T")[0],
+    });
+    setError("");
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return;
     setSubmitting(true);
     try {
-      const promo = await createPromotion({
-        name: form.name.trim(),
-        description: form.description.trim() || undefined,
-        discountType: form.discountType,
-        discountValue: Number(form.discountValue),
-        productId: form.productId || undefined,
-        category: form.category || undefined,
-        startDate: new Date(form.startDate).toISOString(),
-        endDate: new Date(form.endDate).toISOString(),
-        createdBy: userName,
-      });
-      setPromotions((prev) => [promo, ...prev]);
-      setForm({
-        name: "",
-        description: "",
-        discountType: "PERCENTAGE",
-        discountValue: "10",
-        productId: "",
-        category: "",
-        startDate: today(),
-        endDate: nextMonth(),
-      });
-      setShowForm(false);
+      if (editingId) {
+        const updated = await updatePromotion(editingId, {
+          name: form.name.trim(),
+          description: form.description.trim(),
+          discountType: form.discountType,
+          discountValue: Number(form.discountValue),
+          productId: form.productId || null,
+          category: form.category || null,
+          startDate: new Date(form.startDate).toISOString(),
+          endDate: new Date(form.endDate).toISOString(),
+        });
+        setPromotions((prev) => prev.map((p) => (p.id === editingId ? updated : p)));
+      } else {
+        const promo = await createPromotion({
+          name: form.name.trim(),
+          description: form.description.trim() || undefined,
+          discountType: form.discountType,
+          discountValue: Number(form.discountValue),
+          productId: form.productId || undefined,
+          category: form.category || undefined,
+          startDate: new Date(form.startDate).toISOString(),
+          endDate: new Date(form.endDate).toISOString(),
+          createdBy: userName,
+        });
+        setPromotions((prev) => [promo, ...prev]);
+      }
+      resetForm();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al crear promoción");
+      setError(err instanceof Error ? err.message : "Error al guardar promoción");
     } finally {
       setSubmitting(false);
     }
@@ -140,8 +199,6 @@ export default function PromotionsPage() {
     }
   };
 
-  const isExpired = (endDate: string) => new Date(endDate) < new Date();
-
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
@@ -152,7 +209,7 @@ export default function PromotionsPage() {
           </p>
         </div>
         <button
-          onClick={() => setShowForm((v) => !v)}
+          onClick={() => (showForm ? resetForm() : openNew())}
           className="rounded-lg bg-pink-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-pink-700"
         >
           {showForm ? "Cancelar" : "+ Nueva Promoción"}
@@ -180,10 +237,10 @@ export default function PromotionsPage() {
 
       {showForm && (
         <form
-          onSubmit={handleCreate}
+          onSubmit={handleSubmit}
           className="mb-6 rounded-xl border border-pink-100 bg-white p-5 shadow-sm"
         >
-          <h2 className="mb-4 text-base font-semibold text-gray-700">Nueva promoción</h2>
+          <h2 className="mb-4 text-base font-semibold text-gray-700">{editingId ? "Editar promoción" : "Nueva promoción"}</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">
@@ -300,7 +357,7 @@ export default function PromotionsPage() {
           <div className="mt-4 flex justify-end gap-2">
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={resetForm}
               className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
             >
               Cancelar
@@ -310,10 +367,45 @@ export default function PromotionsPage() {
               disabled={submitting}
               className="rounded-lg bg-pink-600 px-4 py-2 text-sm font-medium text-white hover:bg-pink-700 disabled:opacity-50"
             >
-              {submitting ? "Guardando..." : "Crear Promoción"}
+              {submitting ? "Guardando..." : editingId ? "Guardar cambios" : "Crear Promoción"}
             </button>
           </div>
         </form>
+      )}
+
+      {!loading && promotions.length > 0 && (
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nombre, producto o categoria..."
+              className="w-full rounded-lg border border-gray-200 py-2 pl-10 pr-3 text-sm focus:border-pink-400 focus:outline-none"
+            />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {([
+              ["all", "Todas"],
+              ["active", "Vigentes"],
+              ["inactive", "Inactivas"],
+              ["expired", "Vencidas"],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setStatusFilter(value)}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                  statusFilter === value
+                    ? "bg-pink-600 text-white"
+                    : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {loading ? (
@@ -322,9 +414,13 @@ export default function PromotionsPage() {
         <div className="rounded-xl border border-dashed border-gray-200 py-16 text-center text-sm text-gray-400">
           No hay promociones registradas
         </div>
+      ) : filteredPromotions.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-gray-200 py-16 text-center text-sm text-gray-400">
+          No hay promociones que coincidan con la busqueda o el filtro.
+        </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {promotions.map((promo) => {
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filteredPromotions.map((promo) => {
             const expired = isExpired(promo.endDate);
             return (
               <div
@@ -391,6 +487,12 @@ export default function PromotionsPage() {
                 </div>
 
                 <div className="flex gap-2">
+                  <button
+                    onClick={() => startEdit(promo)}
+                    className="flex-1 rounded-md bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
+                  >
+                    Editar
+                  </button>
                   {expired ? (
                     <button
                       onClick={() => handleToggle(promo)}

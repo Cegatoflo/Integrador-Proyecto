@@ -6,7 +6,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <div className="bg-white p-8 rounded-2xl shadow-lg w-96 max-w-md">
         {children}
       </div>
-      <footer className="bottom-4 text-center w-full text-white text-sm mt-2">
+      <footer className="bottom-4 text-center w-full text-white text-sm mt-2" suppressHydrationWarning>
         © {new Date().getFullYear()} Top Modas. Todos los derechos reservados.
       </footer>
     </div>

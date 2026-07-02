@@ -15,21 +15,14 @@ import {
   UserX,
   X,
 } from "lucide-react";
-import { getProducts, processSale, type Product } from "@/frontend/lib/dashboard/api";
+import { getProducts, processSale, getPromotions, type Product, type Promotion } from "@/frontend/lib/dashboard/api";
+import { createCustomer, getCustomers, type Customer as RegisteredCustomer } from "@/frontend/lib/customers/api";
+import { getBestPromotionForProduct } from "@/frontend/lib/sales/promotions";
 import { PaymentMethodSelector, type PaymentMethod } from "@/frontend/components/sales/PaymentMethodSelector";
 import { generateReceiptNumber, generateReceiptPDF } from "@/frontend/lib/sales/receiptGenerator";
 
 type CartItem = Product & { quantity: number };
-type RegisteredCustomer = {
-  id: string;
-  name: string;
-  dni: string;
-  email?: string;
-  phone?: string;
-  createdAt?: string;
-};
 
-const CUSTOMER_STORAGE_KEY = "top-modas-customers";
 const electronicMethods: PaymentMethod[] = [
   "tarjeta_debito",
   "tarjeta_credito",
@@ -86,6 +79,7 @@ export default function CajaPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [filtered, setFiltered] = useState<Product[]>([]);
   const [registeredCustomers, setRegisteredCustomers] = useState<RegisteredCustomer[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerDni, setCustomerDni] = useState("");
@@ -114,12 +108,13 @@ export default function CajaPage() {
       })
       .finally(() => setLoading(false));
 
-    try {
-      const customers = JSON.parse(localStorage.getItem(CUSTOMER_STORAGE_KEY) || "[]") as RegisteredCustomer[];
-      setRegisteredCustomers(Array.isArray(customers) ? customers : []);
-    } catch {
-      setRegisteredCustomers([]);
-    }
+    getCustomers()
+      .then((data) => setRegisteredCustomers(data))
+      .catch(() => setRegisteredCustomers([]));
+
+    getPromotions()
+      .then((data) => setPromotions(data))
+      .catch(() => setPromotions([]));
   }, []);
 
   useEffect(() => {
@@ -131,7 +126,18 @@ export default function CajaPage() {
     ));
   }, [search, products]);
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const pricedCart = useMemo(
+    () =>
+      cart.map((item) => {
+        const applied = getBestPromotionForProduct(item, promotions);
+        const unitPrice = applied ? applied.discountedUnitPrice : item.price;
+        return { item, applied, unitPrice, lineTotal: unitPrice * item.quantity };
+      }),
+    [cart, promotions]
+  );
+  const total = pricedCart.reduce((sum, row) => sum + row.lineTotal, 0);
+  const totalOriginal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalDiscount = totalOriginal - total;
   const isElectronicPayment = electronicMethods.includes(paymentMethod);
   const paidAmount = paymentMethod === "efectivo" ? Number(amountPaid || 0) : total;
   const change = Math.max(0, paidAmount - total);
@@ -181,7 +187,7 @@ export default function CajaPage() {
     setCart((prev) => prev.filter((item) => item.id !== productId));
   };
 
-  const registerQuickCustomer = () => {
+  const registerQuickCustomer = async () => {
     const dni = customerDni.trim();
     const email = customerEmail.trim();
     const phone = normalizePhone(quickCustomerPhone);
@@ -202,25 +208,21 @@ export default function CajaPage() {
       setQuickCustomerError("Telefono invalido. Debe tener 9 digitos y empezar con 9.");
       return;
     }
-    if (registeredCustomers.some((customer) => customer.dni === dni)) {
-      setQuickCustomerError("Ya existe un cliente con ese DNI.");
-      return;
-    }
 
-    const customer: RegisteredCustomer = {
-      id: crypto.randomUUID(),
-      name: quickCustomerName.trim(),
-      dni,
-      email,
-      phone,
-      createdAt: new Date().toISOString(),
-    };
-    const nextCustomers = [customer, ...registeredCustomers];
-    setRegisteredCustomers(nextCustomers);
-    localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(nextCustomers));
-    setQuickCustomerName("");
-    setQuickCustomerPhone("");
-    setQuickCustomerError("");
+    try {
+      const customer = await createCustomer({
+        name: quickCustomerName.trim(),
+        dni,
+        email: email || undefined,
+        phone: phone || undefined,
+      });
+      setRegisteredCustomers((prev) => [customer, ...prev]);
+      setQuickCustomerName("");
+      setQuickCustomerPhone("");
+      setQuickCustomerError("");
+    } catch (err) {
+      setQuickCustomerError(err instanceof Error ? err.message : "Error al registrar cliente");
+    }
   };
 
   const refreshProducts = async () => {
@@ -270,7 +272,7 @@ export default function CajaPage() {
     setProcessing(true);
 
     const receiptNumber = generateReceiptNumber();
-    const soldItems = [...cart];
+    const soldRows = pricedCart;
     const dni = saleWithoutCustomer ? "" : customerDni.trim();
     const email = saleWithoutCustomer ? "" : customerEmail.trim();
     const customerName = saleWithoutCustomer ? "Cliente generico" : registeredCustomer?.name || `Cliente ${dni}`;
@@ -278,7 +280,7 @@ export default function CajaPage() {
     try {
       await processSale({
         receiptNumber,
-        items: soldItems.map((item) => ({ productId: item.id, quantity: item.quantity, price: item.price })),
+        items: soldRows.map((row) => ({ productId: row.item.id, quantity: row.item.quantity, price: row.unitPrice })),
         customerName,
         customerDni: dni || undefined,
         customerEmail: email || undefined,
@@ -295,7 +297,14 @@ export default function CajaPage() {
         customerName,
         customerDni: dni || undefined,
         customerEmail: email || undefined,
-        items: soldItems,
+        items: soldRows.map((row) => ({
+          name: row.item.name,
+          sku: row.item.sku,
+          quantity: row.item.quantity,
+          price: row.unitPrice,
+          originalPrice: row.applied ? row.item.price : undefined,
+          promoLabel: row.applied?.label,
+        })),
         total,
         paymentMethod,
       });
@@ -447,13 +456,21 @@ export default function CajaPage() {
               <div className="px-5 py-7 text-center text-sm text-gray-400">Agrega productos desde el inventario</div>
             ) : (
               <div className="max-h-[180px] divide-y divide-gray-50 overflow-y-auto">
-                {cart.map((item) => (
+                {pricedCart.map(({ item, applied, unitPrice, lineTotal }) => (
                   <div key={item.id} className="flex items-center gap-3 px-4 py-2.5">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-bold text-gray-800">{item.name}</p>
-                      <p className="text-xs text-gray-400">{item.quantity} x S/. {item.price.toFixed(2)}</p>
+                      {applied ? (
+                        <p className="text-xs text-gray-400">
+                          {item.quantity} x <span className="font-semibold text-emerald-600">S/. {unitPrice.toFixed(2)}</span>
+                          <span className="ml-1 line-through">S/. {item.price.toFixed(2)}</span>
+                          <span className="ml-1 rounded bg-emerald-50 px-1 text-[10px] font-bold text-emerald-700">-{applied.label}</span>
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-400">{item.quantity} x S/. {item.price.toFixed(2)}</p>
+                      )}
                     </div>
-                    <span className="w-16 text-right text-xs font-bold text-pink-700">S/. {(item.price * item.quantity).toFixed(2)}</span>
+                    <span className="w-16 text-right text-xs font-bold text-pink-700">S/. {lineTotal.toFixed(2)}</span>
                     <button
                       type="button"
                       onClick={() => removeFromCart(item.id)}
@@ -465,6 +482,13 @@ export default function CajaPage() {
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {totalDiscount > 0 && (
+              <div className="flex items-center justify-between border-t border-gray-100 px-4 pt-3 text-xs">
+                <span className="text-gray-500">Descuento por promociones</span>
+                <span className="font-bold text-emerald-600">- S/. {totalDiscount.toFixed(2)}</span>
               </div>
             )}
 

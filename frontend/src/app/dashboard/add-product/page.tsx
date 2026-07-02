@@ -29,6 +29,13 @@ const generateSku = (products: Product[]) => {
   return sku;
 };
 
+const nextSku = (used: Set<string>) => {
+  let n = 1;
+  let sku = `TMP-${String(n).padStart(4, "0")}`;
+  while (used.has(sku.toUpperCase())) { n += 1; sku = `TMP-${String(n).padStart(4, "0")}`; }
+  return sku;
+};
+
 const getInventorySettings = () => {
   if (typeof window === "undefined") return { lowStockLimit: 10, criticalStockLimit: 3 };
   try {
@@ -62,6 +69,12 @@ export default function AddProductPage() {
   const [editForm, setEditForm] = useState<Partial<typeof emptyForm>>({});
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
+  const [showVariants, setShowVariants] = useState(false);
+  const [variantShared, setVariantShared] = useState({ name: "", category: "", brand: "", brandCustom: "", price: "", referencePrice: "", description: "" });
+  const [variantRows, setVariantRows] = useState<{ size: string; color: string; sku: string; stock: string }[]>([{ size: "", color: "#e85b9c", sku: "", stock: "" }]);
+  const [variantSaving, setVariantSaving] = useState(false);
+  const [variantError, setVariantError] = useState("");
+  const [variantResult, setVariantResult] = useState("");
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -221,6 +234,72 @@ export default function AddProductPage() {
     } finally { setEditSaving(false); }
   };
 
+  const openVariants = () => { setVariantError(""); setVariantResult(""); setShowVariants(true); };
+  const addVariantRow = () => setVariantRows((prev) => [...prev, { size: "", color: "#e85b9c", sku: "", stock: "" }]);
+  const removeVariantRow = (idx: number) => setVariantRows((prev) => prev.length === 1 ? prev : prev.filter((_, i) => i !== idx));
+  const updateVariantRow = (idx: number, patch: Partial<{ size: string; color: string; sku: string; stock: string }>) =>
+    setVariantRows((prev) => prev.map((r, i) => i === idx ? { ...r, ...patch } : r));
+
+  const handleCreateVariants = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setVariantError(""); setVariantResult("");
+    if (!variantShared.name.trim() || !variantShared.category || !variantShared.price || Number(variantShared.price) <= 0) {
+      setVariantError("Completa producto, categoría y un precio de venta válido."); return;
+    }
+    const rows = variantRows.filter((r) => r.size.trim() || r.sku.trim() || r.stock !== "");
+    if (rows.length === 0) { setVariantError("Agrega al menos una variante con talla."); return; }
+
+    const used = new Set(products.map((p) => (p.sku || "").toUpperCase()).filter(Boolean));
+    const prepared: { size: string; color: string; sku: string; stock: number }[] = [];
+    for (const [i, r] of rows.entries()) {
+      const size = r.size.trim();
+      if (!size) { setVariantError(`Variante ${i + 1}: falta la talla.`); return; }
+      if (hasMultipleValues(size)) { setVariantError(`Variante ${i + 1}: una sola talla por SKU.`); return; }
+      const color = (r.color || "").toUpperCase();
+      if (!/^#[0-9A-Fa-f]{6}$/.test(color)) { setVariantError(`Variante ${i + 1}: color en formato HEX (ej. #E85B9C).`); return; }
+      const stock = Number(r.stock || 0);
+      if (!Number.isFinite(stock) || stock < 0) { setVariantError(`Variante ${i + 1}: stock inválido.`); return; }
+      let sku = normalizeSku(r.sku || "");
+      if (!sku) sku = nextSku(used);
+      if (used.has(sku.toUpperCase())) { setVariantError(`Variante ${i + 1}: el SKU ${sku} ya existe o está repetido.`); return; }
+      used.add(sku.toUpperCase());
+      prepared.push({ size, color, sku, stock });
+    }
+
+    setVariantSaving(true);
+    try {
+      const brand = variantShared.brand === "Otro" ? variantShared.brandCustom.trim() : variantShared.brand.trim();
+      const results = await Promise.allSettled(
+        prepared.map((v) =>
+          fetch(`${BACKEND_URL}/api/products`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: variantShared.name.trim(), category: variantShared.category,
+              price: Number(variantShared.price), stock: v.stock,
+              sku: v.sku, size: v.size, color: v.color, brand,
+              referencePrice: variantShared.referencePrice,
+              description: variantShared.description.trim(),
+            }),
+          }).then(async (res) => {
+            if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `SKU ${v.sku}`); }
+            return res.json();
+          })
+        )
+      );
+      const ok = results.filter((r) => r.status === "fulfilled").length;
+      const failed = results.length - ok;
+      await fetchProducts();
+      if (failed === 0) {
+        setVariantResult(`Se crearon ${ok} variante(s) del producto.`);
+        setVariantShared({ name: "", category: "", brand: "", brandCustom: "", price: "", referencePrice: "", description: "" });
+        setVariantRows([{ size: "", color: "#e85b9c", sku: "", stock: "" }]);
+      } else {
+        setVariantError(`Se crearon ${ok} variante(s); ${failed} fallaron. Revisa que los SKU sean únicos y los colores HEX.`);
+      }
+    } finally { setVariantSaving(false); }
+  };
+
   const handleStockEntry = async (product: Product) => {
     const quantity = Number(stockEntries[product.id] || 0);
     if (!Number.isFinite(quantity) || quantity <= 0) { setFormError("Ingresa una cantidad válida."); return; }
@@ -333,7 +412,12 @@ export default function AddProductPage() {
               <h2 className="font-bold text-gray-900">Registro de producto</h2>
               <p className="text-xs text-gray-700">Talla, color HEX, precio y stock inicial.</p>
             </div>
-            <span className="rounded-full bg-pink-50 px-3 py-1 text-xs font-bold text-pink-700">Alta rápida</span>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={openVariants} className="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-xs font-bold text-pink-700 ring-1 ring-pink-200 hover:bg-pink-50">
+                <Plus className="h-3.5 w-3.5" /> Varias tallas/colores
+              </button>
+              <span className="rounded-full bg-pink-50 px-3 py-1 text-xs font-bold text-pink-700">Alta rápida</span>
+            </div>
           </div>
           <div className="grid gap-4 md:grid-cols-6">
             <Field label="Producto" className="md:col-span-2" htmlFor="producto-input">
@@ -573,6 +657,87 @@ export default function AddProductPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {showVariants && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <form onSubmit={handleCreateVariants} className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+              <div>
+                <h3 className="font-bold text-gray-900">Crear producto con variantes</h3>
+                <p className="text-xs text-gray-600">Mismo producto, varias tallas/colores. Se crea un SKU por variante.</p>
+              </div>
+              <button type="button" onClick={() => setShowVariants(false)} aria-label="Cerrar" className="rounded-md p-1 text-gray-500 hover:bg-gray-100"><X className="h-5 w-5" /></button>
+            </div>
+
+            <div className="overflow-y-auto px-6 py-5">
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field label="Producto" className="md:col-span-2" htmlFor="var-name">
+                  <input id="var-name" value={variantShared.name} onChange={(e) => setVariantShared({ ...variantShared, name: e.target.value })} placeholder="Ej. Polo básico" className="field" />
+                </Field>
+                <Field label="Categoría" htmlFor="var-cat">
+                  <select id="var-cat" value={variantShared.category} onChange={(e) => setVariantShared({ ...variantShared, category: e.target.value })} className="field bg-white">
+                    <option value="">Seleccionar</option>
+                    {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </Field>
+                <Field label="Marca / Proveedor" htmlFor="var-brand">
+                  <select id="var-brand" value={variantShared.brand} onChange={(e) => setVariantShared({ ...variantShared, brand: e.target.value, brandCustom: "" })} className="field bg-white">
+                    <option value="">Seleccionar marca</option>
+                    {BRANDS.map((b) => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                  {variantShared.brand === "Otro" && (
+                    <input value={variantShared.brandCustom} onChange={(e) => setVariantShared({ ...variantShared, brandCustom: e.target.value })} placeholder="Nombre de la marca" className="field mt-1" aria-label="Nombre de la marca" />
+                  )}
+                </Field>
+                <Field label="Precio venta" htmlFor="var-price">
+                  <input id="var-price" type="number" min="0" step="0.01" value={variantShared.price} onChange={(e) => setVariantShared({ ...variantShared, price: e.target.value })} placeholder="0.00" className="field" />
+                </Field>
+                <Field label="Precio ref." htmlFor="var-ref">
+                  <input id="var-ref" type="number" min="0" step="0.01" value={variantShared.referencePrice} onChange={(e) => setVariantShared({ ...variantShared, referencePrice: e.target.value })} placeholder="0.00" className="field" />
+                </Field>
+                <Field label="Notas / características" className="md:col-span-3" htmlFor="var-notes">
+                  <input id="var-notes" value={variantShared.description} onChange={(e) => setVariantShared({ ...variantShared, description: e.target.value })} placeholder="Material, temporada, observaciones..." className="field" />
+                </Field>
+              </div>
+
+              <div className="mt-5">
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-gray-800">Variantes ({variantRows.length})</h4>
+                  <button type="button" onClick={addVariantRow} className="inline-flex items-center gap-1 rounded-md bg-pink-50 px-3 py-1.5 text-xs font-bold text-pink-700 hover:bg-pink-100">
+                    <Plus className="h-3.5 w-3.5" /> Agregar variante
+                  </button>
+                </div>
+                <div className="mb-1 hidden grid-cols-[1fr_auto_1fr_90px_auto] gap-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 sm:grid">
+                  <span>Talla</span><span>Color</span><span>SKU</span><span>Stock</span><span></span>
+                </div>
+                <div className="space-y-2">
+                  {variantRows.map((row, idx) => (
+                    <div key={idx} className="grid grid-cols-[1fr_auto_1fr_90px_auto] items-center gap-2 rounded-lg border border-gray-100 p-2">
+                      <input list="size-options" value={row.size} onChange={(e) => updateVariantRow(idx, { size: e.target.value })} placeholder="Talla" className="field" aria-label={`Talla variante ${idx + 1}`} />
+                      <input type="color" value={row.color} onChange={(e) => updateVariantRow(idx, { color: e.target.value })} className="h-9 w-10 rounded-md border border-gray-200 bg-white p-1" aria-label={`Color variante ${idx + 1}`} />
+                      <input value={row.sku} onChange={(e) => updateVariantRow(idx, { sku: e.target.value })} placeholder="SKU (auto si vacío)" className="field uppercase" aria-label={`SKU variante ${idx + 1}`} />
+                      <input type="number" min="0" value={row.stock} onChange={(e) => updateVariantRow(idx, { stock: e.target.value })} placeholder="0" className="field" aria-label={`Stock variante ${idx + 1}`} />
+                      <button type="button" onClick={() => removeVariantRow(idx)} disabled={variantRows.length === 1} className="rounded-md p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40" aria-label={`Quitar variante ${idx + 1}`}>
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {variantError && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{variantError}</p>}
+              {variantResult && <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">{variantResult}</p>}
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-gray-100 px-6 py-4">
+              <button type="button" onClick={() => setShowVariants(false)} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cerrar</button>
+              <button type="submit" disabled={variantSaving} className="inline-flex items-center gap-2 rounded-lg bg-pink-600 px-5 py-2 text-sm font-bold text-white hover:bg-pink-700 disabled:opacity-60">
+                <Save className="h-4 w-4" /> {variantSaving ? "Creando..." : "Crear variantes"}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

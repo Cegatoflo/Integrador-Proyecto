@@ -16,7 +16,7 @@ export default function Home() {
         </div>
         <LoginForm />
       </div>
-      <footer className="absolute bottom-4 text-center w-full text-white text-sm">
+      <footer className="absolute bottom-4 text-center w-full text-white text-sm" suppressHydrationWarning>
         © {new Date().getFullYear()} Top Modas. Todos los derechos reservados.
       </footer>
     </div>

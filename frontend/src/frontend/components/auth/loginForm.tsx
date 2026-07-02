@@ -108,12 +108,6 @@ export const LoginForm = () => {
 
       <div className="mt-5 text-center text-sm space-y-2">
         <p className="text-gray-500">¿Necesitas ayuda?</p>
-        <a
-          href="/forgot-password"
-          className="text-pink-600 hover:underline block"
-        >
-          ¿Olvidaste tu contraseña?
-        </a>
         <a href="/contact-admin" className="text-pink-600 hover:underline block">
           Contactar al Administrador
         </a>

@@ -9,31 +9,9 @@ import { SaleConfirmationModal } from "@/frontend/components/sales/SaleConfirmat
 import { PaymentMethodSelector, type PaymentMethod } from "@/frontend/components/sales/PaymentMethodSelector";
 import { generateReceiptNumber, generateReceiptPDF } from "@/frontend/lib/sales/receiptGenerator";
 import { getProducts, processSale, type Product } from "@/frontend/lib/dashboard/api";
+import { createCustomer, getCustomers, type Customer } from "@/frontend/lib/customers/api";
 
 type CartItem = Product & { quantity: number };
-
-type Customer = {
-  id: string;
-  name: string;
-  dni: string;
-  email: string;
-  phone: string;
-};
-
-const CUSTOMER_STORAGE_KEY = "top-modas-customers";
-
-const loadCustomers = (): Customer[] => {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(localStorage.getItem(CUSTOMER_STORAGE_KEY) || "[]") as Customer[];
-  } catch {
-    return [];
-  }
-};
-
-const saveCustomers = (customers: Customer[]) => {
-  localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(customers));
-};
 
 const normalizePhone = (phone: string) => phone.replace(/\D/g, "").slice(0, 9);
 const validatePhone = (phone: string) => phone === "" || /^9\d{8}$/.test(phone);
@@ -68,7 +46,7 @@ export default function CreateSalePage() {
   });
 
   useEffect(() => {
-    setCustomers(loadCustomers());
+    getCustomers().then(setCustomers).catch(() => {});
     getProducts()
       .then((data) => setProducts(data.filter((product) => product.stock > 0)))
       .catch(() => setFormError("No se pudieron cargar los productos. Revisa que el backend este activo."))
@@ -134,27 +112,28 @@ export default function CreateSalePage() {
     return "";
   };
 
-  const addCustomer = () => {
+  const addCustomer = async () => {
     const error = validateCustomer();
     if (error) {
       setFormError(error);
       return;
     }
 
-    const customer: Customer = {
-      id: crypto.randomUUID(),
-      name: newCustomerData.name.trim(),
-      dni: newCustomerData.dni.trim(),
-      email: newCustomerData.email.trim(),
-      phone: normalizePhone(newCustomerData.phone),
-    };
-    const nextCustomers = [...customers, customer];
-    setCustomers(nextCustomers);
-    saveCustomers(nextCustomers);
-    setSelectedCustomerId(customer.id);
-    setNewCustomerData({ name: "", dni: "", email: "", phone: "" });
-    setShowCustomerForm(false);
-    setFormError("");
+    try {
+      const customer = await createCustomer({
+        name: newCustomerData.name.trim(),
+        dni: newCustomerData.dni.trim(),
+        email: newCustomerData.email.trim() || undefined,
+        phone: normalizePhone(newCustomerData.phone) || undefined,
+      });
+      setCustomers((prev) => [...prev, customer]);
+      setSelectedCustomerId(customer.id);
+      setNewCustomerData({ name: "", dni: "", email: "", phone: "" });
+      setShowCustomerForm(false);
+      setFormError("");
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Error al registrar cliente");
+    }
   };
 
   const completeSale = async () => {

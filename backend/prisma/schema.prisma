@@ -125,6 +125,24 @@ model Promotion {
   updatedAt     DateTime     @updatedAt
 }
 
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  dni       String   @unique
+  email     String?
+  phone     String?
+  createdAt DateTime @default(now())
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
 enum Role {
   ADMIN
   USER

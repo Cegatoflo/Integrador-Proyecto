@@ -15,6 +15,7 @@ type ItemToReturn = { productId: string; name: string; sku: string | null; maxQt
 
 const saleNumber = (sale: Pick<Sale, "id" | "receiptNumber">) => sale.receiptNumber || `#${sale.id.slice(0, 8)}`;
 const returnSaleNumber = (item: ProductReturn) => item.sale?.receiptNumber || (item.saleId ? `#${item.saleId.slice(0, 8)}` : "-");
+const daysSince = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
 
 export default function ReturnsPage() {
   const [returns, setReturns] = useState<ProductReturn[]>([]);
@@ -23,6 +24,7 @@ export default function ReturnsPage() {
   const [error, setError] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [userName, setUserName] = useState("");
+  const [policy, setPolicy] = useState<{ maxDays: number; requireApproval: boolean }>({ maxDays: 30, requireApproval: true });
 
   const [step, setStep] = useState<"search" | "select">("search");
   const [saleSearch, setSaleSearch] = useState("");
@@ -38,6 +40,11 @@ export default function ReturnsPage() {
       setIsAdmin(user.role === "ADMIN");
       setUserName(user.name ?? "");
     } catch { setIsAdmin(false); }
+
+    try {
+      const stored = JSON.parse(localStorage.getItem("top-modas-returns-policy") || "null") as { maxDays?: number; requireApproval?: boolean } | null;
+      if (stored) setPolicy({ maxDays: Math.max(0, Number(stored.maxDays) || 0), requireApproval: stored.requireApproval !== false });
+    } catch { /* usa la política por defecto */ }
   }, []);
 
   useEffect(() => {
@@ -92,20 +99,34 @@ export default function ReturnsPage() {
     setItems((prev) => prev.map((it, i) => i === idx ? { ...it, returnQty: Math.max(1, Math.min(qty, it.maxQty)) } : it));
 
   const selectedItems = items.filter((it) => it.selected && it.maxQty > 0);
+  const saleAgeDays = foundSale ? daysSince(foundSale.createdAt) : 0;
+  const saleTooOld = !!foundSale && policy.maxDays > 0 && saleAgeDays > policy.maxDays;
 
   const handleSubmit = async () => {
     if (!foundSale || selectedItems.length === 0 || !reason.trim()) {
       setError("Selecciona al menos un producto e ingresa el motivo."); return;
     }
+    if (policy.maxDays > 0 && daysSince(foundSale.createdAt) > policy.maxDays) {
+      setError(`Esta venta tiene ${daysSince(foundSale.createdAt)} días y supera el límite de ${policy.maxDays} días para aceptar devoluciones.`);
+      return;
+    }
     setSubmitting(true); setError("");
     try {
-      const newReturns = await Promise.all(
+      const created = await Promise.all(
         selectedItems.map((it) =>
           createReturn({ productId: it.productId, quantity: it.returnQty, reason: reason.trim(), saleId: foundSale.id })
         )
       );
+      // Si la política NO exige aprobación del admin, se aprueban en el acto (repone stock).
+      const newReturns = policy.requireApproval
+        ? created
+        : await Promise.all(created.map((r) => updateReturnStatus(r.id, "APPROVED", userName || "Automático")));
       setReturns((prev) => [...newReturns, ...prev]);
-      setSuccessMsg(`Se crearon ${newReturns.length} devolucion(es) para la venta ${saleNumber(foundSale)}.`);
+      setSuccessMsg(
+        policy.requireApproval
+          ? `Se crearon ${newReturns.length} devolución(es) pendientes de aprobación para la venta ${saleNumber(foundSale)}.`
+          : `Se aprobaron ${newReturns.length} devolución(es) y se repuso el stock para la venta ${saleNumber(foundSale)}.`
+      );
       setStep("search");
       setFoundSale(null);
       setItems([]);
@@ -232,6 +253,13 @@ export default function ReturnsPage() {
               <span className="ml-auto font-bold text-pink-700">S/. {foundSale.total.toFixed(2)}</span>
             </div>
 
+            {saleTooOld && (
+              <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <span className="mt-0.5">⚠️</span>
+                <span>Esta venta tiene {saleAgeDays} días y supera el límite de {policy.maxDays} días para devoluciones. No se puede crear la devolución (ajústalo en Configuración).</span>
+              </div>
+            )}
+
             <div className="mb-4 space-y-2">
               {items.map((item, idx) => (
                 <label key={item.productId} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 transition-colors ${item.maxQty === 0 ? "border-gray-100 bg-gray-50 opacity-60" : item.selected ? "border-pink-300 bg-pink-50" : "border-gray-100 hover:border-gray-200 hover:bg-gray-50"}`}>
@@ -284,7 +312,7 @@ export default function ReturnsPage() {
                 </button>
                 <button
                   onClick={handleSubmit}
-                  disabled={submitting || selectedItems.length === 0 || !reason.trim()}
+                  disabled={submitting || selectedItems.length === 0 || !reason.trim() || saleTooOld}
                   className="inline-flex items-center gap-2 rounded-lg bg-pink-600 px-5 py-2 text-sm font-bold text-white hover:bg-pink-700 disabled:opacity-60"
                 >
                   <RotateCcw className="h-4 w-4" />

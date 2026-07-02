@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, AlertTriangle, XCircle, X, Clock, CheckCircle, RotateCcw, ArrowRight } from "lucide-react";
+import { Bell, AlertTriangle, XCircle, X, Clock, CheckCircle, RotateCcw, ArrowRight, Mail, Check } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   getProducts,
@@ -10,6 +10,7 @@ import {
   type StockRequest,
   type ProductReturn,
 } from "@/frontend/lib/dashboard/api";
+import { getContactMessages, markContactRead, type ContactMessage } from "@/frontend/lib/contact/api";
 
 type StockAlert = {
   product: Product;
@@ -34,6 +35,7 @@ export default function Header() {
   const [stockAlerts, setStockAlerts] = useState<StockAlert[]>([]);
   const [pendingRequests, setPendingRequests] = useState<StockRequest[]>([]);
   const [pendingReturns, setPendingReturns] = useState<ProductReturn[]>([]);
+  const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
   const [myRequests, setMyRequests] = useState<StockRequest[]>([]);
   const [open, setOpen] = useState(false);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
@@ -51,7 +53,7 @@ export default function Header() {
         const lowLimit = parseInt(localStorage.getItem("lowStockLimit") || "10", 10);
         const criticalLimit = parseInt(localStorage.getItem("criticalStockLimit") || "3", 10);
 
-        Promise.all([getProducts(), getStockRequests(), getReturns()]).then(([products, requests, returns]) => {
+        Promise.all([getProducts(), getStockRequests(), getReturns(), getContactMessages(true)]).then(([products, requests, returns, messages]) => {
           const alerts: StockAlert[] = products
             .filter((p) => p.stock <= lowLimit)
             .map((p) => ({
@@ -62,6 +64,7 @@ export default function Header() {
           setStockAlerts(alerts);
           setPendingRequests(requests.filter((r) => r.status === "PENDING"));
           setPendingReturns(returns.filter((r) => r.status === "PENDING"));
+          setContactMessages(messages);
         }).catch(() => {});
       } else {
         const name = user.name || user.email || "";
@@ -85,8 +88,17 @@ export default function Header() {
   }, []);
 
   const badgeCount = isAdmin
-    ? stockAlerts.length + pendingRequests.length + pendingReturns.length
+    ? stockAlerts.length + pendingRequests.length + pendingReturns.length + contactMessages.length
     : myRequests.filter((r) => r.status === "PENDING").length;
+
+  const handleReadMessage = async (id: string) => {
+    setContactMessages((prev) => prev.filter((m) => m.id !== id));
+    try {
+      await markContactRead(id);
+    } catch {
+      // si falla, se recupera al recargar
+    }
+  };
 
   return (
     <header className="relative bg-white shadow-sm" ref={dropdownRef}>
@@ -133,6 +145,8 @@ export default function Header() {
               alerts={stockAlerts}
               requests={pendingRequests}
               returns={pendingReturns}
+              messages={contactMessages}
+              onRead={handleReadMessage}
               onNavigate={() => setOpen(false)}
             />
           ) : (
@@ -171,14 +185,18 @@ function AdminNotifications({
   alerts,
   requests,
   returns,
+  messages,
+  onRead,
   onNavigate,
 }: {
   alerts: StockAlert[];
   requests: StockRequest[];
   returns: ProductReturn[];
+  messages: ContactMessage[];
+  onRead: (id: string) => void;
   onNavigate: () => void;
 }) {
-  const empty = alerts.length === 0 && requests.length === 0 && returns.length === 0;
+  const empty = alerts.length === 0 && requests.length === 0 && returns.length === 0 && messages.length === 0;
 
   if (empty) {
     return <div className="px-4 py-6 text-center text-sm text-gray-400">Sin notificaciones pendientes</div>;
@@ -186,6 +204,31 @@ function AdminNotifications({
 
   return (
     <ul className="max-h-96 overflow-y-auto divide-y divide-gray-50">
+      {messages.length > 0 && (
+        <>
+          <SectionHeader label="Mensajes de contacto" count={messages.length} href="/dashboard/settings#usuarios" onNavigate={onNavigate} accent="text-pink-600" />
+          {messages.map((msg) => (
+            <li key={msg.id} className="flex items-start gap-2 bg-pink-50/60 px-4 py-3">
+              <a href="/dashboard/settings#usuarios" onClick={onNavigate} className="flex min-w-0 flex-1 items-start gap-3">
+                <Mail className="mt-0.5 h-4 w-4 flex-shrink-0 text-pink-500" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-gray-800">{msg.name}</p>
+                  <p className="truncate text-xs text-gray-500">{msg.message}</p>
+                  <p className="truncate text-[11px] text-gray-400">{msg.email}</p>
+                </div>
+              </a>
+              <button
+                onClick={() => onRead(msg.id)}
+                title="Marcar como leído"
+                className="flex-shrink-0 self-center rounded-full p-1 text-pink-600 hover:bg-pink-100"
+              >
+                <Check className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </>
+      )}
+
       {requests.length > 0 && (
         <>
           <SectionHeader label="Solicitudes de stock" count={requests.length} href="/dashboard/add-product#solicitudes" onNavigate={onNavigate} accent="text-blue-600" />

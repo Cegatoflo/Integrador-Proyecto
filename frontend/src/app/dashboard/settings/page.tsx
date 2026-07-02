@@ -213,8 +213,10 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* Parametros del sistema: inventario y devoluciones lado a lado */}
+      <div className="grid gap-5 lg:grid-cols-2">
       {/* Alertas de inventario */}
-      <form onSubmit={saveSettings} className="max-w-3xl rounded-lg bg-white p-6 shadow-sm ring-1 ring-gray-100">
+      <form onSubmit={saveSettings} className="flex flex-col rounded-lg bg-white p-6 shadow-sm ring-1 ring-gray-100">
         <div className="mb-5 flex items-center gap-3 border-b border-gray-100 pb-4">
           <div className="rounded-md bg-pink-100 p-3"><SlidersHorizontal className="h-5 w-5 text-pink-600" /></div>
           <div>
@@ -245,7 +247,7 @@ export default function SettingsPage() {
       </form>
 
       {/* Politica de devoluciones */}
-      <form onSubmit={savePolicy} className="max-w-3xl rounded-lg bg-white p-6 shadow-sm ring-1 ring-gray-100">
+      <form onSubmit={savePolicy} className="flex flex-col rounded-lg bg-white p-6 shadow-sm ring-1 ring-gray-100">
         <div className="mb-5 flex items-center gap-3 border-b border-gray-100 pb-4">
           <div className="rounded-md bg-rose-100 p-3"><RotateCcw className="h-5 w-5 text-rose-600" /></div>
           <div>
@@ -271,9 +273,10 @@ export default function SettingsPage() {
           <Save className="h-4 w-4" /> {policySaved ? "Guardado" : "Guardar politica"}
         </button>
       </form>
+      </div>
 
       {/* Usuarios y roles */}
-      <div className="rounded-lg bg-white shadow-sm ring-1 ring-gray-100">
+      <div id="usuarios" className="scroll-mt-6 rounded-lg bg-white shadow-sm ring-1 ring-gray-100">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 p-6">
           <div className="flex items-center gap-3">
             <div className="rounded-md bg-indigo-100 p-3"><Users className="h-5 w-5 text-indigo-600" /></div>

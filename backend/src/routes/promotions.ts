@@ -84,12 +84,13 @@ router.post("/", async (req: Request, res: Response) => {
 router.patch("/:id", async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id);
-    const { isActive, name, description, discountType, discountValue, category, startDate, endDate } = req.body as {
+    const { isActive, name, description, discountType, discountValue, productId, category, startDate, endDate } = req.body as {
       isActive?: boolean;
       name?: string;
       description?: string;
       discountType?: "PERCENTAGE" | "FIXED";
       discountValue?: number;
+      productId?: string | null;
       category?: string | null;
       startDate?: string;
       endDate?: string;
@@ -103,7 +104,8 @@ router.patch("/:id", async (req: Request, res: Response) => {
         ...(description !== undefined && { description: description?.trim() || null }),
         ...(discountType && { discountType }),
         ...(discountValue !== undefined && { discountValue: Number(discountValue) }),
-        ...(category !== undefined && { category: category?.trim() || null }),
+        ...(productId !== undefined && { productId: productId || null }),
+        ...(category !== undefined && { category: productId ? null : category?.trim() || null }),
         ...(startDate && { startDate: new Date(startDate) }),
         ...(endDate && { endDate: new Date(endDate) }),
       },

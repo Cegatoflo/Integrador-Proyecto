@@ -311,6 +311,29 @@ export const createPromotion = async (payload: {
   return data;
 };
 
+export const updatePromotion = async (
+  id: string,
+  payload: {
+    name?: string;
+    description?: string;
+    discountType?: DiscountType;
+    discountValue?: number;
+    productId?: string | null;
+    category?: string | null;
+    startDate?: string;
+    endDate?: string;
+  }
+): Promise<Promotion> => {
+  const res = await fetch(`${BACKEND_URL}/api/promotions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Error al actualizar promoción");
+  return data;
+};
+
 export const togglePromotion = async (id: string, isActive: boolean): Promise<Promotion> => {
   const res = await fetch(`${BACKEND_URL}/api/promotions/${id}`, {
     method: "PATCH",
