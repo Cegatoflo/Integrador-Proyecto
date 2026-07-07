@@ -232,13 +232,112 @@ export default function CajaPage() {
     setFiltered(available);
   };
 
+  const getCardType = (cardNumber: string) => {
+    const cleanNumber = cardNumber.replace(/\D/g, "");
+    if (cleanNumber.startsWith("4")) return "visa";
+    if (cleanNumber.startsWith("5")) return "mastercard";
+    return null;
+  };
+
+  const formatCardNumber = (value: string) => {
+    const cleanNumber = value.replace(/\D/g, "").slice(0, 16);
+    const parts = cleanNumber.match(/.{1,4}/g) || [];
+    return parts.join(" ");
+  };
+
+  const formatExpiry = (value: string) => {
+    const cleanValue = value.replace(/\D/g, "").slice(0, 4);
+    if (cleanValue.length <= 2) return cleanValue;
+    return `${cleanValue.slice(0, 2)}/${cleanValue.slice(2)}`;
+  };
+
   const confirmPaymentSimulation = () => {
     if (paymentMethod === "tarjeta_debito" || paymentMethod === "tarjeta_credito") {
-      if (cardData.number.replace(/\D/g, "").length < 12 || !cardData.name.trim() || !cardData.expiry || !cardData.cvv) {
-        setSaleError("Completa los datos simulados de la tarjeta.");
+      const cleanCardNumber = cardData.number.replace(/\D/g, "");
+      const trimmedName = cardData.name.trim();
+      
+      // Validar que todos los campos sean obligatorios
+      if (!cardData.number.trim() || !trimmedName || !cardData.expiry.trim() || !cardData.cvv.trim()) {
+        setSaleError("Todos los campos de la tarjeta son obligatorios.");
+        return;
+      }
+      
+      // Validar número de tarjeta
+      if (cleanCardNumber.length !== 16) {
+        setSaleError("El número de tarjeta debe tener exactamente 16 dígitos.");
+        return;
+      }
+      
+      // Validar que sea Visa o Mastercard
+      const cardType = getCardType(cardData.number);
+      if (!cardType) {
+        setSaleError("Solo se aceptan tarjetas Visa (4) o Mastercard (5).");
+        return;
+      }
+      
+      // Validar titular
+      if (trimmedName.length < 3) {
+        setSaleError("El nombre del titular debe tener al menos 3 caracteres.");
+        return;
+      }
+      
+      if (trimmedName.length > 50) {
+        setSaleError("El nombre del titular no puede exceder 50 caracteres.");
+        return;
+      }
+      
+      // Validar que no contenga números
+      if (/\d/.test(trimmedName)) {
+        setSaleError("El nombre del titular no puede contener números.");
+        return;
+      }
+      
+      // Validar que no contenga símbolos especiales
+      const specialCharsRegex = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/g;
+      if (specialCharsRegex.test(trimmedName)) {
+        setSaleError("El nombre del titular no puede contener símbolos especiales.");
+        return;
+      }
+      
+      // Validar fecha de expiración
+      const expiryClean = cardData.expiry.replace(/\D/g, "");
+      if (expiryClean.length !== 4) {
+        setSaleError("La fecha debe estar en formato MM/AA (ej: 12/25).");
+        return;
+      }
+      
+      const expiryMonth = parseInt(expiryClean.slice(0, 2), 10);
+      if (expiryMonth < 1 || expiryMonth > 12) {
+        setSaleError("El mes debe estar entre 01 y 12.");
+        return;
+      }
+      
+      // Verificar que el año sea igual o mayor al año actual
+      const year = expiryClean.slice(2);
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear() % 100;
+      const currentMonth = currentDate.getMonth() + 1;
+      const cardYear = parseInt(year, 10);
+      const cardMonth = expiryMonth;
+      
+      if (cardYear < currentYear) {
+        setSaleError(`La tarjeta debe ser mayor o iguala 20${currentYear.toString().padStart(2, "0")}.`);
+        return;
+      }
+      
+      if (cardYear === currentYear && cardMonth < currentMonth) {
+        setSaleError("El mes de este año ya paso.");
+        return;
+      }
+      
+      // Validar CVV
+      const cleanCvv = cardData.cvv.replace(/\D/g, "");
+      if (cleanCvv.length < 3 || cleanCvv.length > 4) {
+        setSaleError("El CVV debe tener 3 o 4 dígitos.");
         return;
       }
     }
+    
     setSaleError("");
     setPaymentConfirmed(true);
     setShowPaymentModal(false);
@@ -666,23 +765,72 @@ export default function CajaPage() {
             </div>
 
             <div className="space-y-4 p-5">
+              {saleError && paymentMethod !== "efectivo" && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{saleError}</div>
+              )}
               {paymentMethod === "tarjeta_debito" || paymentMethod === "tarjeta_credito" ? (
                 <div className="space-y-3">
                   <div className="rounded-lg bg-gray-900 p-4 text-white">
-                    <CreditCard className="mb-5 h-6 w-6 text-pink-300" />
+                    <div className="mb-5 flex items-center justify-between">
+                      <CreditCard className="h-6 w-6 text-pink-300" />
+                      <span className="text-xs font-bold uppercase tracking-wider">
+                        {getCardType(cardData.number) === "visa" && "🔵 VISA"}
+                        {getCardType(cardData.number) === "mastercard" && "🔴 MASTERCARD"}
+                        {!getCardType(cardData.number) && "TARJETA"}
+                      </span>
+                    </div>
                     <p className="font-mono text-lg tracking-widest">
-                      {cardData.number || "4242 4242 4242 4242"}
+                      {formatCardNumber(cardData.number) || "4242 4242 4242 4242"}
                     </p>
                     <div className="mt-4 flex justify-between text-xs text-gray-300">
                       <span>{cardData.name || "CLIENTE TOP MODAS"}</span>
                       <span>{cardData.expiry || "12/29"}</span>
                     </div>
                   </div>
-                  <input className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm" placeholder="Numero de tarjeta" value={cardData.number} onChange={(e) => setCardData({ ...cardData, number: e.target.value })} />
-                  <input className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm" placeholder="Titular" value={cardData.name} onChange={(e) => setCardData({ ...cardData, name: e.target.value })} />
+                  <input 
+                    className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm font-mono tracking-widest" 
+                    placeholder="Numero de tarjeta" 
+                    value={formatCardNumber(cardData.number)} 
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, "").slice(0, 16);
+                      setCardData({ ...cardData, number: value });
+                    }}
+                    maxLength={19}
+                  />
+                  <input 
+                    className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm" 
+                    placeholder="Titular" 
+                    value={cardData.name}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, "").slice(0, 50);
+                      setCardData({ ...cardData, name: value });
+                    }}
+                    maxLength={50}
+                  />
                   <div className="grid grid-cols-2 gap-3">
-                    <input className="rounded-md border border-gray-200 px-3 py-2 text-sm" placeholder="MM/AA" value={cardData.expiry} onChange={(e) => setCardData({ ...cardData, expiry: e.target.value })} />
-                    <input className="rounded-md border border-gray-200 px-3 py-2 text-sm" placeholder="CVV" value={cardData.cvv} onChange={(e) => setCardData({ ...cardData, cvv: e.target.value })} />
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Fecha de Vencimiento</label>
+                    <input 
+                      className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm font-mono" 
+                      placeholder="MM/AA" 
+                      value={formatExpiry(cardData.expiry)} 
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, "").slice(0, 4);
+                        setCardData({ ...cardData, expiry: value });
+                      }}
+                      maxLength={5}
+                    />
+                  </div>
+                    <input 
+                      className="rounded-md border border-gray-200 px-3 py-2 text-sm" 
+                      placeholder="CVV" 
+                      value={cardData.cvv} 
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, "").slice(0, 4);
+                        setCardData({ ...cardData, cvv: value });
+                      }}
+                      maxLength={4}
+                    />
                   </div>
                 </div>
               ) : (
