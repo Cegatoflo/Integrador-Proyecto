@@ -144,7 +144,8 @@ export default function AddProductPage() {
 
   const totalValue = products.reduce((sum, p) => sum + p.price * p.stock, 0);
   const outOfStock = products.filter((p) => p.stock === 0).length;
-  const lowStock = products.filter((p) => { const s = getStatus(p.stock).id; return s === "bajo" || s === "critico"; }).length;
+  const lowStock = products.filter((p) => getStatus(p.stock).id === "bajo").length;
+  const criticalStock = products.filter((p) => getStatus(p.stock).id === "critico").length;
 
   const resolvedBrand = (data: typeof emptyForm) => data.brand === "Otro" ? data.brandCustom.trim() : data.brand.trim();
   const isSkuTaken = (sku: string, currentProductId?: string) =>
@@ -347,9 +348,10 @@ export default function AddProductPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
         <StatCard icon={<Package className="h-5 w-5 text-pink-600" />} label="Productos" value={products.length.toString()} />
         <StatCard icon={<AlertTriangle className="h-5 w-5 text-amber-600" />} label="Stock bajo" value={lowStock.toString()} />
+        <StatCard icon={<AlertTriangle className="h-5 w-5 text-rose-600" />} label="Stock crítico" value={criticalStock.toString()} />
         <StatCard icon={<AlertTriangle className="h-5 w-5 text-red-500" />} label="Agotados" value={outOfStock.toString()} />
         {isAdmin && <StatCard icon={<DollarSign className="h-5 w-5 text-emerald-600" />} label="Valor almacén" value={`S/. ${totalValue.toLocaleString("es-PE", { minimumFractionDigits: 2 })}`} />}
       </div>

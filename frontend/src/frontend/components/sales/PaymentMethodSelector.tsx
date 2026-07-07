@@ -68,12 +68,6 @@ const paymentMethods: MethodConfig[] = [
     description: "Codigo",
     icon: <QrCode className="h-5 w-5" />,
   },
-  {
-    id: "billetera_digital",
-    name: "Wallet",
-    description: "Digital",
-    icon: <WalletCards className="h-5 w-5" />,
-  },
 ];
 
 export function PaymentMethodSelector({

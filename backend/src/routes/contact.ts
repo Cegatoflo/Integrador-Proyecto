@@ -55,4 +55,15 @@ router.patch("/:id/read", async (req: Request, res: Response) => {
   }
 });
 
+// Eliminar un mensaje
+router.delete("/:id", async (req: Request, res: Response) => {
+  try {
+    const id = String(req.params.id);
+    await prisma.contactMessage.delete({ where: { id } });
+    res.json({ message: "Mensaje eliminado" });
+  } catch {
+    res.status(500).json({ error: "Error al eliminar mensaje" });
+  }
+});
+
 export default router;

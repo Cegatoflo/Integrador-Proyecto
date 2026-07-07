@@ -32,3 +32,8 @@ export const markContactRead = async (id: string): Promise<void> => {
   const res = await fetch(`${BACKEND_URL}/api/contact/${id}/read`, { method: "PATCH" });
   if (!res.ok) throw new Error("Error al marcar mensaje");
 };
+
+export const deleteContactMessage = async (id: string): Promise<void> => {
+  const res = await fetch(`${BACKEND_URL}/api/contact/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Error al eliminar mensaje");
+};

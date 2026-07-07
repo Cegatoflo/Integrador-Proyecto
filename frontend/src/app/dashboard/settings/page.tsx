@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Check, KeyRound, Pencil, RotateCcw, Save, Shield, SlidersHorizontal, TriangleAlert, UserPlus, Users, X } from "lucide-react";
+import { AlertTriangle, Check, KeyRound, Mail, Pencil, RotateCcw, Save, Search, Shield, SlidersHorizontal, Trash2, TriangleAlert, UserPlus, Users, X } from "lucide-react";
 import { getUsers, createUser, updateUser, resetUserPassword, type AppUser } from "@/frontend/lib/dashboard/api";
+import { getContactMessages, markContactRead, deleteContactMessage, type ContactMessage } from "@/frontend/lib/contact/api";
 
 const INVENTORY_SETTINGS_KEY = "top-modas-inventory-settings";
 const RETURNS_POLICY_KEY = "top-modas-returns-policy";
@@ -25,6 +26,10 @@ export default function SettingsPage() {
 
   const [users, setUsers] = useState<AppUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
+  const [messages, setMessages] = useState<ContactMessage[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(true);
+  const [messageFilter, setMessageFilter] = useState<"all" | "unread" | "read">("all");
+  const [messageSearch, setMessageSearch] = useState("");
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
 
@@ -70,8 +75,13 @@ export default function SettingsPage() {
         .then(setUsers)
         .catch(() => setError("No se pudieron cargar los usuarios."))
         .finally(() => setUsersLoading(false));
+      getContactMessages()
+        .then(setMessages)
+        .catch(() => {})
+        .finally(() => setMessagesLoading(false));
     } else {
       setUsersLoading(false);
+      setMessagesLoading(false);
     }
   }, []);
 
@@ -194,6 +204,31 @@ export default function SettingsPage() {
     }
   };
 
+  const markMessageRead = async (id: string) => {
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, read: true } : m)));
+    try { await markContactRead(id); } catch { /* se recupera al recargar */ }
+  };
+
+  const removeMessage = async (id: string) => {
+    if (!confirm("¿Eliminar este mensaje?")) return;
+    const snapshot = messages;
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+    try { await deleteContactMessage(id); } catch { setMessages(snapshot); setError("No se pudo eliminar el mensaje."); }
+  };
+
+  const unreadMessages = messages.filter((m) => !m.read).length;
+  const filteredMessages = messages.filter((m) => {
+    if (messageFilter === "unread" && m.read) return false;
+    if (messageFilter === "read" && !m.read) return false;
+    const q = messageSearch.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      m.name.toLowerCase().includes(q) ||
+      m.email.toLowerCase().includes(q) ||
+      m.message.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="space-y-5">
       <div>
@@ -273,6 +308,81 @@ export default function SettingsPage() {
           <Save className="h-4 w-4" /> {policySaved ? "Guardado" : "Guardar politica"}
         </button>
       </form>
+      </div>
+
+      {/* Mensajes de contacto */}
+      <div id="mensajes" className="scroll-mt-6 rounded-lg bg-white shadow-sm ring-1 ring-gray-100">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 p-6">
+          <div className="flex items-center gap-3">
+            <div className="rounded-md bg-pink-100 p-3"><Mail className="h-5 w-5 text-pink-600" /></div>
+            <div>
+              <h2 className="font-bold text-gray-900">Mensajes de contacto</h2>
+              <p className="text-sm text-gray-500">Tickets enviados desde &ldquo;Contactar al Administrador&rdquo;.</p>
+            </div>
+          </div>
+          {unreadMessages > 0 && (
+            <span className="rounded-full bg-pink-50 px-3 py-1 text-xs font-bold text-pink-700">{unreadMessages} sin leer</span>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-3 border-b border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              value={messageSearch}
+              onChange={(e) => setMessageSearch(e.target.value)}
+              placeholder="Buscar por nombre, correo o mensaje..."
+              className="w-full rounded-md border border-gray-200 py-2 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
+            />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {([["all", "Todos"], ["unread", "No leídos"], ["read", "Leídos"]] as const).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setMessageFilter(value)}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${messageFilter === value ? "bg-pink-600 text-white" : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {messagesLoading ? (
+          <div className="px-6 py-10 text-center text-sm text-gray-400">Cargando mensajes...</div>
+        ) : messages.length === 0 ? (
+          <div className="px-6 py-10 text-center text-sm text-gray-400">No hay mensajes de contacto.</div>
+        ) : filteredMessages.length === 0 ? (
+          <div className="px-6 py-10 text-center text-sm text-gray-400">No hay mensajes que coincidan con el filtro.</div>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {filteredMessages.map((m) => (
+              <li key={m.id} className={`flex flex-wrap items-start gap-3 p-5 ${m.read ? "" : "bg-pink-50/40"}`}>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold text-gray-800">{m.name}</p>
+                    {!m.read && <span className="rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-bold text-pink-700">Nuevo</span>}
+                    <a href={`mailto:${m.email}`} className="text-xs text-pink-600 hover:underline">{m.email}</a>
+                  </div>
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-gray-600">{m.message}</p>
+                  <p className="mt-1 text-[11px] text-gray-400">
+                    {new Date(m.createdAt).toLocaleString("es-PE", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                </div>
+                <div className="flex flex-shrink-0 gap-2">
+                  {!m.read && (
+                    <button onClick={() => markMessageRead(m.id)} className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100" title="Marcar como leído">
+                      <Check className="h-3.5 w-3.5" /> Leído
+                    </button>
+                  )}
+                  <button onClick={() => removeMessage(m.id)} className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-100" title="Eliminar mensaje">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Usuarios y roles */}

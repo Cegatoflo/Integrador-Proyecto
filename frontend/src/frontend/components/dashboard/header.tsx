@@ -206,10 +206,10 @@ function AdminNotifications({
     <ul className="max-h-96 overflow-y-auto divide-y divide-gray-50">
       {messages.length > 0 && (
         <>
-          <SectionHeader label="Mensajes de contacto" count={messages.length} href="/dashboard/settings#usuarios" onNavigate={onNavigate} accent="text-pink-600" />
+          <SectionHeader label="Mensajes de contacto" count={messages.length} href="/dashboard/settings#mensajes" onNavigate={onNavigate} accent="text-pink-600" />
           {messages.map((msg) => (
             <li key={msg.id} className="flex items-start gap-2 bg-pink-50/60 px-4 py-3">
-              <a href="/dashboard/settings#usuarios" onClick={onNavigate} className="flex min-w-0 flex-1 items-start gap-3">
+              <a href="/dashboard/settings#mensajes" onClick={onNavigate} className="flex min-w-0 flex-1 items-start gap-3">
                 <Mail className="mt-0.5 h-4 w-4 flex-shrink-0 text-pink-500" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-gray-800">{msg.name}</p>
